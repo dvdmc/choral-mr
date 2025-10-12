@@ -1,11 +1,20 @@
-# CHORAL:  General Framework for Safe Heterogeneous Multi-robot Coordination in Inspection Tasks
+# CHORAL: A General Framework for Safe Heterogeneous Multi-robot Coordination in Inspection Tasks
 
-This repository includes te code for the paper _"General Framework for Safe Heterogeneous Multi-robot Coordination in Inspection Tasks"_ under review for IEEE Robotics & Automation Letters. The system is composed of: a routing and coordination module, an environmental awareness acquisition module, and the individual robot navigation modules for conducting the mission. The system is fully containerized to allow easy deployment in a general and practical manner. This repository allows the execution of all the software components to further validate our contributions, and provide instructions and deployment configurations for the hardware components, which we believe useful for multi-robot deployment settings. **NOTE: Since we do not expect reviewers to run a real deployment, some components of the platform-specific Dockerfiles have been removed for anonymity purposes.**
+<p align="center">
+  <img src="media/teaser.png" alt="Main image" width="200" style="margin-right: 40px;">
+  <img src="media/teaser.png" alt="Main image" width="200">
+</p>
+
+This repository includes te code for the paper _"CHORAL: A General Framework for Safe Heterogeneous Multi-robot Coordination in Inspection Tasks"_ under review for IEEE Robotics & Automation Letters.
+
+The system is composed of: a routing and coordination module, an environmental awareness acquisition module, and the individual robot navigation modules for conducting the mission. The system is fully containerized to allow easy deployment in a general and practical manner. This repository allows the execution of all the software components to further validate our contributions, and provide instructions and deployment configurations for the hardware components, which we believe will be useful for multi-robot deployment settings. 
+
+**NOTE: Since we do not expect reviewers to run a real deployment, some components of the platform-specific Dockerfiles have been removed for anonymity purposes.**
 
 ## Repository structure
 
 This repository contains:
-- `docker-compose{-tb2/as2}` are the entrypoints for running the system on the ground station, ground robot, or aerial platform. They define the Dockerfiles to be used to run the system in each platform, define environmental variables and map volumes.
+- `docker-compose{-tb2/as2}.yaml` are the entrypoints for running the system on the ground station, ground robot, or aerial platform. They define the Dockerfiles to be used to run the system in each platform, define environmental variables and map volumes to the host machine.
 - `docker_gs/` folder including the ground station Dockerfile.
 - `docker_tb2/`folder including the Turtlebot Dockerfile and the ROS 2 packages `tb2_system` and `optitrack_pose_broadcaster` required to run navigation on the ground robot.
 - `docker_as2/` folder including the Surveyor Dockerfile and the ROS 2 package `as2_system` required to run navigation on the surveyor drone.
@@ -17,10 +26,12 @@ This repository contains:
 
 ## Installation
 
-All the system has been dockerized to ease the installation process. However, any user could follow the installation steps in the Dockerfiles to install the whole system natively. For configuring Docker, follow the [official installation procedure](
+All the system has been dockerized to ease the installation process. However, any user could follow the installation steps in the Dockerfiles to install the whole system natively.
+
+For configuring Docker, follow the [official installation procedure](
 https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) for Ubuntu. Make sure to finish the post-installation steps for running Docker without `sudo` or add it to the commands from here. See below for configuring GPU compatibility (optional).
 
-Once Docker (and optionally NVIDIA Container Toolkit) is installed and validated, you can build the different containers with `docker compose`, which will use the `docker-compsoe.yaml` file by default. Docker compose is installed by default in modern Docker versions. Thus, you can simply do:
+Once Docker (and optionally NVIDIA Container Toolkit) is installed and validated, you can build the different containers with `docker compose`, which will use the `docker-compose.yaml` file by default. Docker compose is installed by default in modern Docker versions. Thus, you can simply do:
 
 ```bash
 docker compose build
@@ -33,7 +44,7 @@ The other `docker-compose-{tb/as2}.yaml` files are built inside the Turtlebot an
 docker compose -f docker-compose-{tb/as2}.yaml build
 ```
 
-The Turtlebot's companion computer is an Intel NUC connected to the base via USB. The Surveyor drone's companion computer is an Nvidia Jetson Nano set up with JetPack 4.6 JetPack 4.6.6 [L4T 32.7.6] and a the Pixhawk firmware version is v1.14.
+The Turtlebot's companion computer is an Intel NUC connected to the base via USB. The Surveyor drone's companion computer is an Nvidia Jetson Nano set up with JetPack 4.6 JetPack 4.6.6 [L4T 32.7.6] and a Pixhawk with firmware version v1.14.
 
 ### Configuring GPU usage (optional)
 
@@ -73,8 +84,15 @@ docker exec -it mr_system /bin/bash
 
 Once you are inside the Docker, move to the `TODO` folder and run:
 ```bash
-
+cd mr_ws
+colcon build --symlink-install
+source install/setup.bash
+tmuxinator start -p launch-gs_virtual.yaml
+# On the terminal that appears
+mr_coord_virtual.launch num_agents:=2 map:=forest 
 ```
+
+You can modify the number of agents to 1 and 4. Other numbers require creating specific config files in `mr_ws/src/het_vrp/mr_het_coord_ros/cfg`. You can also specify other map names.
 
 ## Real robots deployment
 
@@ -94,8 +112,10 @@ The drone used as a Surveyor is commanded through mavlink using a companion comp
 - Since we are using Optitrack, set `rigid_body_name` to the rigid body ID.
 - Match your specific PX4 / Mavros configuration.
 
-### Troubleshooting
+## Citation
 
-#### mocap4ros2 not connecting to Optitrack
+Please, if you use the code in this repository, cite the original source.
 
-Check Optitrack configuration: Unicast/Multicast, and that the interface is an `IP` and not `loopback`.
+## Acknowledgements
+
+We would like to thank the work of Nav2 and Aerostack2 ROS 2 packages. We would also like to thank Trident authors for open-sourcing their implementation.

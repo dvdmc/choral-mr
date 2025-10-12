@@ -1,0 +1,15 @@
+name: ground_station
+attach: true
+root: ./
+startup_window: main
+windows:
+  # Platform
+  - main:
+      layout: tiled
+      panes:
+        # Map can be: 
+        - echo "ros2 launch mr_het_coord_ros mr_coord_virtual.launch num_agents:=2 map:=forest"
+  - visualization:
+      layout: tiled
+      panes:
+        - ros2 run rviz2 rviz2 -d ./src/Bloomxai/bloomxai_ros/config/rviz.rviz --ros-args -p use_sim_time:=true

@@ -1,0 +1,5 @@
+/**:
+  ros__parameters:
+    robot_ns:
+      - "drone_1"
+      - "turtlebot_1"

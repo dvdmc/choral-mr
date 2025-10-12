@@ -1,0 +1,5 @@
+/**:
+  ros__parameters:
+    step_size: 1.0
+    map_name: real
+    paths_filename: "none"

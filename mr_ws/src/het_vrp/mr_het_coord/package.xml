@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<package format="3">
+
+  <name>mr_het_coord</name>
+  <version>0.0.0</version>
+  <description>MR Het Coord package</description>
+
+  <author email="anonym@anonym.com">anonym@anonym.com</author>
+  <maintainer email="anonym@anonym.com">anonym@anonym.com</maintainer>
+
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+  
+</package>

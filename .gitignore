@@ -1,0 +1,5 @@
+anonymize.txt
+.vscode/
+build/
+install/
+log/

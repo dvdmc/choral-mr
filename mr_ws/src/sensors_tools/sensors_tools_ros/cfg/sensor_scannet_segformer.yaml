@@ -1,0 +1,30 @@
+/**:
+  ros__parameters:
+
+    use_sim_time: false
+
+    frequency: 20.0 # Frequency of the sensor in Hz. -1 means that we are using a service instead of a timer
+    stride: 8 # Stride of the sensor for generating the pointcloud
+    max_depth: 4.5 # Maximum distance of the sensor
+    publish_freespace_point_cloud: true
+    origin_frame_id: "map" # Origin of the sensor will be published in this frame for the poses
+    sensor_frame_id: "camera_link" # Sensor messages will be published in this frame
+
+    save_inference: false
+    save_inference_path: '/media/root/datasets/dataset/'
+
+    # Config for bridge is in sensors_tools/bridge/{bridge_type}.py
+    bridge:
+      bridge_type: 'scannet' # Source of the sensor. It can be 'airsim' or 'ros'
+      automove: true
+      downsampling_factor_dataset: 4
+      data_types: ['rgb', 'depth', 'semantic', 'pose'] # Data types to be published. It can be 'rgb', 'depth', 'semantic', 'pose'
+      origin_tf: "map"
+      poses_tf: "camera_link"
+      dataset_path: '/root/datasets/scannet/scans/scene0568_00'
+
+
+    # Config for inference is in sensors_tools/inference/semantic_segmentation/{semantic_segmentation_type}.py
+    semantic_segmentation_type: 'segformer'
+    inference:
+      semantic_dataset_type: "ade20k" # Number of classes 150

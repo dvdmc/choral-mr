@@ -1,0 +1,35 @@
+name: tb_system
+attach: true
+root: ./
+startup_window: main
+windows:
+  # Mission monitoring
+  - mission_monitoring:
+      layout:
+      panes:
+        - echo Run here the mission
+  # This transforms the broadcasted optitrack msgs to TF and pose
+  - mocap: 
+      layout: tiled
+      panes:
+        - sleep 2; ros2 run optitrack_pose_broadcaster gt_pose_broadcaster_node --ros-args -r rigid_bodies:=/mocap/rigid_bodies -p rigid_body_name:='"4"'
+
+  # Kobuki
+  - kobuki:
+      layout:
+      panes:
+        - ros2 launch tb2_system kobuki_node_optitrack.launch.py
+        - ros2 launch tb2_system kobuki_description.launch.py urdf_file:=urdf/turtlebot_with_optitrack.urdf.xacro use_sim_time:=false use_namespace:=false
+  - navigation:
+      layout:
+      panes:
+        - ros2 launch nav2_bringup bringup_launch.py use_localization:=False use_namespace:=False use_composition:=False map:=maps/dummy.yaml params_file:=config/optitrack/nav2_params.yaml
+        # Map server is not run when not using localization expecting slam to be active. Thus, we need to run a dummy map:
+        - ros2 launch tb2_system nav2_map_server.launch.py map:=maps/dummy.yaml use_sim_time:=false use_namespace:=false params_file:=config/optitrack/nav2_params.yaml
+
+  - static_transforms:
+      layout:
+      panes:
+        # The map/earth transform is required for AS2 in the ground station
+        - sleep 2; ros2 run tf2_ros static_transform_publisher --x 0 --y 0 --z 0 --qx 0 --qy 0 --qz 0 --qw 1 --child-frame-id /map --frame-id /earth
+        - sleep 2; ros2 run tf2_ros static_transform_publisher --x 0 --y 0 --z 0 --qx 0 --qy 0 --qz 0 --qw 1 --child-frame-id /odom --frame-id /map

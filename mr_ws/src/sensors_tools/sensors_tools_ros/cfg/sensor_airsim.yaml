@@ -1,0 +1,27 @@
+/**:
+  ros__parameters:
+    frequency: 10.0 # Frequency of the sensor in Hz. -1 means that we are using a service instead of a timer
+    stride: 8 # Stride of the sensor for generating the pointcloud
+    max_range: -1.0 # Maximum distance of the sensor
+    publish_freespace_point_cloud: true
+    origin_frame_id: "map" # Origin of the sensor will be published in this frame for the poses
+    sensor_frame_id: "camera_link" # Sensor messages will be published in this frame
+
+    save_inference: false
+    save_inference_path: '/root/datasets/dataset/'
+
+    # Config for bridge is in sensors_tools/bridge/{bridge_type}.py
+    bridge:
+      bridge_type: 'airsim' # Source of the sensor. It can be 'airsim' or 'ros'
+      data_types: ['rgb', 'depth', 'semantic', 'pose'] # Data types to be published. It can be 'rgb', 'depth', 'segmentation', 'pointcloud'
+      dataset_path: '/root/datasets/test_data/'
+      width: 512
+      height: 512
+      semantic_config: [["Bottle", 5], ["bottle", 5], ["WineBottle", 5], ["palm", 16], ["plant", 16], ["Plant", 16], ["table", 11], ["Table", 11], ["Defenbakh", 11], ["flower", 16], ["Sofa", 18], ["screen", 20], ["monitor", 20], ["Chair", 9], ["chair", 9], ["Tablesofa", 11]]
+
+    # Config for inference is in sensors_tools/inference/{inference_type}.py
+    inference_type: 'classic'
+    inference:
+      model_name: "deeplabv3_resnet50"
+      num_classes: 21
+      labels_name: "coco_voc"

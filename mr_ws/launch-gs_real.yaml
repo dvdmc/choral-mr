@@ -1,0 +1,47 @@
+name: ground_station
+attach: true
+root: ./
+startup_window: main
+windows:
+  # Platform
+  - main:
+      layout: tiled
+      panes:
+        - echo "python3 mission_as2.py -n drone1"
+        - echo "ros2 launch mr_het_coord_ros mr_coord_real.launch num_agents:=2 map:=real"
+
+  # This will broadcast the pose to all Mavlink, Tello and Turtlebot
+  - mocap: 
+      layout: tiled
+      panes:
+        - ros2 launch mocap4r2_optitrack_driver optitrack2.launch.py 
+            namespace:=mocap 
+            config_file:=config/ground_station/mocap4r2_optitrack.yaml
+        - sleep 2; ros2 lifecycle set /mocap/mocap4r2_optitrack_driver_node activate
+  - surveyor:
+      layout: tiled
+      panes:
+        - ros2 run as2_alphanumeric_viewer as2_alphanumeric_viewer_node
+            --ros-args -r  __ns:=/drone1
+  - tello:
+      layout: tiled
+      panes:
+        - ros2 run as2_alphanumeric_viewer as2_alphanumeric_viewer_node
+            --ros-args -r  __ns:=/drone2
+  - visualization:
+      layout: tiled
+      panes:
+        - ros2 run rviz2 rviz2 -d ./src/Bloomxai/bloomxai_ros/config/rviz.rviz 
+            --ros-args -p use_sim_time:=true
+        #- ros2 topic pub /visualization_marker visualization_msgs/msg/Marker "{header: { frame_id: 'map' }, ns: 'arena_mesh', id: 0, type: 10,action: 0, pose: {position: { x: 0.0, y: 0.0, z: 0.0 }, orientation: { x: 0.0, y: 0.0, z: 0.0, w: 1.0 } },scale: { x: 1.0, y: 1.0, z: 1.0 }, mesh_resource: 'file:///root/mr_ws/meshes/arena.dae',mesh_use_embedded_materials: true}"
+
+  - mapping:
+      layout: tiled
+      panes:
+        - source .het/bin/activate && ros2 launch sensors_tools_ros semantic_sensor_bag.launch.xml
+        - ros2 launch bloomxai_ros bonxai_mapping.launch.xml
+        - ros2 run image_transport republish 
+            --ros-args -p in_transport:=compressed 
+            -p out_transport:=raw 
+            -r in/compressed:=/camera/camera/color/image_raw/compressed 
+            -r out:=/camera/camera/color/image_raw

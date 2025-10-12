@@ -1,0 +1,31 @@
+services:
+  mr_system:
+    image: mr_system
+    build:
+      context: ./docker_gs/ # gs for "ground station"
+      dockerfile: Dockerfile
+    container_name: mr_system
+    environment:
+      DISPLAY: $DISPLAY
+      ROS_DOMAIN_ID: 3
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+    privileged: true
+    runtime: nvidia
+    volumes:
+      # X11
+      - ~/.Xauthority:/root/.Xauthority
+      # For connecting with interfaces
+      - /dev/:/dev
+      # Mount the workspace
+      - ./mr_ws:/root/mr_ws
+      # Mount the bags
+      - ./bags:/root/bags
+      # Mount the results
+      - ./results:/root/results
+      # Mount the map to save result
+      - ./maps:/root/maps
+      # Mount checkpoints for Trident
+      - ./checkpoints:/root/checkpoints
+  
+    network_mode: "host"
+    command: tail -f /dev/null

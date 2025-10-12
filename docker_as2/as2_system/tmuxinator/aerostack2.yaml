@@ -1,0 +1,76 @@
+<%
+# Input parameters
+drone_namespace           = @settings["drone_namespace"]
+motion_controller_plugin  = @settings["motion_controller_plugin"]
+rosbag                    = @settings["rosbag"]
+%>
+name: <%= drone_namespace %>
+attach: false
+root: ./
+startup_window: mission_monitoring
+windows:
+  # NOTE: We don't use AS2 currently, just the basic functions
+  # Platform
+  - platform:
+      layout: tiled
+      panes:
+      # Platform
+        - ros2 launch as2_platform_mavlink as2_platform_mavlink_launch.py
+            namespace:=<%= drone_namespace %>
+            platform_config_file:=config/config.yaml
+        - ros2 launch as2_platform_mavlink mavros_launch.py
+            namespace:=<%= drone_namespace %>
+            mavros_config_file:=config/config.yaml
+  
+  - sensors:
+      layout: tiled
+      panes:
+        - ros2 run realsense2_camera realsense2_camera_node --ros-args -p spatial_filter.enable:=true -r __ns:=/drone1
+
+  <%- if rosbag %>
+  - bag:
+      layout: tiled
+      panes:
+        - echo "ros2 bag record /tf /tf_static /drone1/camera/color/image_raw/compressed /drone1/camera/depth/image_rect_raw /drone1/camera/color/camera_info /drone1/camera/color/metadata /drone1/camera/depth/camera_info /drone1/camera/depth/metadata /drone1/self_localization/pose /drone1/self_localization/twist -o /root/bags/beta1.bag"
+  <%- end %>
+
+  - static_transforms:
+      layout:
+      panes:
+        - sleep 2; ros2 run tf2_ros static_transform_publisher --x 0.19 --y 0 --z -0.1 --qx 0 --qy 0.7071 --qz 0 --qw 0.7071 --frame-id drone1/base_link --child-frame-id camera_link
+        - sleep 2; ros2 run tf2_ros static_transform_publisher --x 0 --y 0 --z 0 --qx 3.14159265359 --qy 0 --qw 0 --frame-id drone1/base_link --child-frame-id drone1/base_link_frd
+  # Basic Robotics Functions
+  - basics_robotics_functions:
+      layout:
+      panes:
+        # State Estimation
+        - ros2 launch as2_state_estimator state_estimator_launch.py
+            namespace:=<%= drone_namespace %>
+            config_file:=config/config.yaml
+        # Motion Controller
+        - ros2 launch as2_motion_controller controller_launch.py
+            namespace:=<%= drone_namespace %>
+            config_file:=config/config.yaml
+            plugin_name:=<%= motion_controller_plugin %>
+            plugin_config_file:=config/<%= motion_controller_plugin %>.yaml
+
+  # Behaviors
+  - behaviors:
+      layout:
+      panes:
+        # Motion Behaviors
+        - ros2 launch as2_behaviors_motion motion_behaviors_launch.py
+            namespace:=<%= drone_namespace %>
+            config_file:=config/config.yaml
+        # Trajectory Generation Behavior
+        - ros2 launch as2_behaviors_trajectory_generation generate_polynomial_trajectory_behavior_launch.py
+            namespace:=<%= drone_namespace %>
+            config_file:=config/config.yaml
+
+  # Mission monitoring
+  - mission_monitoring:
+      layout: tiled
+      panes:
+        - ros2 run as2_alphanumeric_viewer as2_alphanumeric_viewer_node
+            --ros-args -r  __ns:=/<%= drone_namespace %>
+        - echo Run here the mission

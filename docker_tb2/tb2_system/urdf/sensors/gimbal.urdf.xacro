@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<robot name="gimbal_struct" xmlns:xacro="http://ros.org/wiki/xacro">
+	<xacro:include filename="$(find tb2_system)/urdf/turtlebot_gazebo.urdf.xacro"/>
+	<xacro:include filename="$(find tb2_system)/urdf/turtlebot_properties.urdf.xacro"/>
+	
+	<xacro:macro name="gimbal" params="parent">
+		<link name="base_gimbal_plate_link">
+			<collision>
+				<origin xyz="0 0 0" rpy="0 0 0"/>
+				<geometry>
+					<box size="0.18 0.18 0.011" />
+				</geometry>
+			</collision>
+			<visual>
+				<origin xyz="0 0 0" rpy="0 0 0"/>
+				<geometry>
+					<box size="0.18 0.18 0.011" />
+				</geometry>
+				<material name="Gray">
+					<color rgba="0.5 0.5 0.5 1"/>
+				</material>
+			</visual>
+			<inertial>
+				<mass value="1e-5" />
+				<origin xyz="0 0 0" rpy="0 0 0"/>
+				<inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+			</inertial>
+		</link>
+
+		<joint name="gimbal_plate_joint" type="fixed">
+			<axis xyz="0 0 1" />
+			<origin xyz="0.095 0.0 0.0055" rpy="0 0 0"/>
+			<parent link="${parent}"/>
+			<child link="base_gimbal_plate_link"/>
+		</joint>
+
+		<link name="base_gimbal_link">
+			<collision>
+				<origin xyz="0 0 0" rpy="0 0 0"/>
+				<geometry>
+					<box size="0.1 0.1 0.1"/>
+				</geometry>
+			</collision>
+			<visual>
+				<origin xyz="0 0 0" rpy="0 0 0"/>
+				<geometry>
+					<box size="0.034 0.034 0.1935" />
+				</geometry>
+				<material name="Gray">
+					<color rgba="0.5 0.5 0.5 1"/>
+				</material>
+			</visual>
+			<inertial>
+				<mass value="1e-5" />
+				<origin xyz="0 0 0" rpy="0 0 0"/>
+				<inertia ixx="1e-6" ixy="0" ixz="0" iyy="1e-6" iyz="0" izz="1e-6" />
+			</inertial>
+		</link>
+
+		<joint name="gimbal_joint" type="fixed">
+			<axis xyz="0 0 1" />
+			<origin xyz="0 0.0 0.09675" rpy="0 0 0"/>
+			<parent link="base_gimbal_plate_link"/>
+			<child link="base_gimbal_link"/>
+		</joint>
+
+		<link name="camera_mount_gimbal_link">
+		</link>
+
+		<joint name="camera_mount_gimbal_joint" type="fixed">
+			<axis xyz="0 0 1" />
+			<origin xyz="0 0.0 0.09675" rpy="0 0 0"/>
+			<parent link="base_gimbal_link"/>
+			<child link="camera_mount_gimbal_link"/>
+		</joint>
+
+	</xacro:macro>
+</robot>

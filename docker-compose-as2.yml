@@ -1,0 +1,20 @@
+services:
+  as2_system:
+    image: as2_system
+    build:
+      context: ./docker-nano/
+      dockerfile: Dockerfile
+    container_name: as2_system
+    environment:
+      DISPLAY: $DISPLAY
+      ROS_DOMAIN_ID: 3
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+    privileged: true
+    volumes:
+      # X11
+      - ~/.Xauthority:/root/.Xauthority
+      # 
+      - /dev/:/dev
+      - ./bags:/root/bags
+    network_mode: "host"
+    command: tail -f /dev/null

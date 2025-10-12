@@ -1,0 +1,10 @@
+/**:
+  ros__parameters:
+    step_size: 0.25
+    map_filename: /root/mr_ws/src/het_vrp/maps/forest.pgm
+    map_name: forest
+    map_resolution: 0.0333
+    paths_filename: none
+    map_center:
+      - 0.0
+      - 0.0

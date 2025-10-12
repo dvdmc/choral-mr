@@ -1,0 +1,21 @@
+name: ground_station
+attach: true
+root: ./
+startup_window: main
+windows:
+  # Platform
+  - main:
+      layout: tiled
+      panes:
+        - echo "ros2 bag play /root/bags/test1 --clock"
+        - echo "ros2 launch mr_het_coord_ros mr_coord_real.launch num_agents:=2 map:=real"
+  - visualization:
+      layout: tiled
+      panes:
+        - ros2 run rviz2 rviz2 -d ./src/Bloomxai/bloomxai_ros/config/rviz.rviz --ros-args -p use_sim_time:=true
+  - mapping:
+      layout: tiled
+      panes:
+        - source .het/bin/activate && ros2 launch sensors_tools_ros semantic_sensor_bag.launch.xml
+        - ros2 launch bloomxai_ros bonxai_mapping.launch.xml
+        - ros2 run image_transport republish --ros-args -p in_transport:=compressed -p out_transport:=raw --remap in/compressed:=/camera/camera/color/image_raw/compressed --remap out:=/camera/camera/color/image_raw

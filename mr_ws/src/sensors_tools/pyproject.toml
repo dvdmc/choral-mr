@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sensors_tools"
+authors = [{name = "anonym@anonym.com", email = "anonym@anonym.com"}]
+readme="README.md"
+requires-python=">=3.7.0"
+version = "0.1.0"
+dependencies=[
+    "tqdm",
+    "numpy<2",
+    "matplotlib",
+    "Pillow",
+    "torchtyping",
+    "pyyaml",
+    "einops",
+    "ftfy",
+    "gdown",
+    "regex",
+    "pandas",
+    "poses_tools @ git+https://github.com/dvdmc/poses_tools.git@main",
+    # Trident dependencies (check versions)
+    "fsspec",
+    "huggingface_hub",
+    "nltk",
+    "opencv_python<=4.10.0.82",
+    "openpyxl",
+    "pycocotools",
+    "safetensors",
+    "scipy",
+    "scikit-image",
+    "timm",
+    "transformers==4.37.2",
+]
+# TODO: Add optional dependency rospkg
+# Indicate in readme: pip install torch torchvision torchaudio
+
+[tool.setuptools]
+packages = ["sensors_tools"]
+
+[tool.ruff]
+indent-width = 2
+line-length = 120

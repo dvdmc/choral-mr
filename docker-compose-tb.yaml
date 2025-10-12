@@ -1,0 +1,20 @@
+services:
+  tb_system:
+    image: tb_system
+    build:
+      context: ./docker_gs/ # gs for "ground station"
+      dockerfile: Dockerfile
+    container_name: tb_system
+    environment:
+      DISPLAY: $DISPLAY
+      ROS_DOMAIN_ID: 3
+      RMW_IMPLEMENTATION: rmw_cyclonedds_cpp
+    privileged: true
+    volumes:
+      # X11
+      - ~/.Xauthority:/root/.Xauthority
+      # For connecting with interfaces
+      - /dev/:/dev
+  
+    network_mode: "host"
+    command: tail -f /dev/null

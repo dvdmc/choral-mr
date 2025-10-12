@@ -1,0 +1,10 @@
+/**:
+  ros__parameters:
+    step_size: 3.0
+    map_filename: /root/mr_ws/src/het_vrp/maps/cave.pgm
+    map_name: cave
+    paths_filename: "none"
+    map_resolution: 0.3
+    map_center:
+      - 0.0
+      - 0.0

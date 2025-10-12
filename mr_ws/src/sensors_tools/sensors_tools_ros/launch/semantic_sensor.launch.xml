@@ -1,0 +1,14 @@
+<launch>
+
+  <arg name="config_file" default="$(find-pkg-share sensors_tools_ros)/cfg/sensor_scannet_segformer.yaml"/>
+
+  <node pkg="sensors_tools_ros"
+        exec="semantic_node"
+        name="semantic_sensor"
+        output="screen"
+        emulate_tty="true">
+    <param from="$(var config_file)" />
+    <param name="use_sim_time" value="false" />
+  </node>
+
+</launch>

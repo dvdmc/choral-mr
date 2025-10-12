@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<package format="3">
+
+  <name>mr_het_coord_ros</name>
+  <version>0.0.0</version>
+  <description>MR Het Coord ROS wrapper package</description>
+
+  <author email="anonym@anonym.com">anonym@anonym.com</author>
+  <maintainer email="anonym@anonym.com">anonym@anonym.com</maintainer>
+
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>rosidl_default_generators</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>nav_msgs</depend>
+  <depend>visualization_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>mr_het_coord</depend>
+  <depend>rclcpp_action</depend>
+  <depend>nav2_msgs</depend>
+  <depend>as2_msgs</depend>
+  <depend>tf2</depend>
+
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <exec_depend>ros2launch</exec_depend>
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>

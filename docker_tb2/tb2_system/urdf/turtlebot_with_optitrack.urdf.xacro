@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!--
+    - Base      : kobuki
+    - Stacks    : hexagons
+-->
+<robot name="turtlebot" xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Bases -->
+  <xacro:include filename="$(find kobuki_description)/urdf/kobuki.urdf.xacro" />
+  <!-- Stacks -->
+  <xacro:include filename="$(find tb2_system)/urdf/stacks/hexagons.urdf.xacro"/>
+  
+  <xacro:kobuki/>
+  <xacro:stack_hexagons parent="base_link"/>
+
+  
+  <joint name="mocap_joint" type="fixed">
+    <parent link="plate_top_link"/>
+    <child link="base_mocap"/>
+    <origin xyz="0.0 0 0.01" rpy="0 0 0"/>
+  </joint>
+  <link name="base_mocap">
+  </link>
+
+</robot>

@@ -27,6 +27,6 @@ class SemanticSegmentationBase:
     def infer(self, image):
         raise NotImplementedError
     
-    # TODO(dvdmc): test if this works directly for transforming a single label
+    # TODO(anonym): test if this works directly for transforming a single label
     def to_rgb(self, semantics, bgr=False, feature_type=None, overlay=False, rgb_image=None):
         return NotImplementedError

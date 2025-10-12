@@ -80,7 +80,7 @@ class SemanticSegmentationSensor:
         self.bridge = get_bridge(self.cfg.bridge_type, self.cfg.bridge_cfg)
         self.bridge.setup()
 
-        # If there is a GT label mapper, load it. NOTE: This is now handled by the bridge TODO(dvdmc)
+        # If there is a GT label mapper, load it. NOTE: This is now handled by the bridge TODO(anonym)
         # print(self.cfg.gt_labels_mapper)
         # self.gt_labels_mapper = None
         # if self.cfg.gt_labels_mapper is not None:

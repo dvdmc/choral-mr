@@ -54,7 +54,7 @@ RUN apt-get update && apt-get install -y ros-jazzy-rmw-cyclonedds-cpp
 RUN apt install ros-jazzy-kobuki-velocity-smoother ros-jazzy-sophus -y
 RUN mkdir -p /root/turtlebot2_ws/src
 WORKDIR /root/turtlebot2_ws/src
-# TODO: Fix my forks (dvdmc) when solved!
+# TODO: Fix forks when solved!
 RUN git clone https://github.com/kobuki-base/kobuki_ros_interfaces.git && \
     git clone https://github.com/kobuki-base/kobuki_core.git && \
     git clone https://github.com/kobuki-base/kobuki_ros.git && \
@@ -92,7 +92,7 @@ COPY docker/60-kobuki.rules /etc/udev/rules.d/
 
 # INCLUDE a compiled ready version of the current repo
 RUN mkdir -p /root/tb2_system_compiled/src
-ADD tb2_unizar /root/tb2_system_compiled/src/tb2_system
+ADD tb2_system /root/tb2_system_compiled/src/tb2_system
 WORKDIR /root/tb2_system_compiled
 RUN ["/bin/bash", "-c", "source /root/optitrack_ws/install/setup.bash && colcon build --symlink-install"]
 

@@ -70,7 +70,7 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
         "feature_vector",
     ]
 
-    # TODO(dvdmc): take the text query parameter out
+    # TODO(anonym): take the text query parameter out
     def __init__(
         self,
         cfg: SemanticSegmentationCLIPConfig,
@@ -245,7 +245,7 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
 
         if self.semantic_feature_type == "feature_vector":
             # Nothing to do except recover the size
-            # We need to permute channels to do the recover size correctly TODO(dvdmc): can we improve this?
+            # We need to permute channels to do the recover size correctly TODO(anonym): can we improve this?
             self.semantics = (
                 recover_size(embeddings.permute(2, 0, 1)).permute(1, 2, 0).cpu().numpy()
             )
@@ -282,7 +282,7 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
             
         elif semantic_feature_type == "feature_vector":
             # Transform semantic to tensor
-            # TODO(dvdmc): check if doing these operations (and functions below) in CPU is more efficient (it probably is)
+            # TODO(anonym): check if doing these operations (and functions below) in CPU is more efficient (it probably is)
             semantics = torch.from_numpy(semantics).to(self.device)
             # Compute similarity
             sims = semantics @ self.text_embs.T  # (H, W, D) @ (D, N) -> (H, W, N)

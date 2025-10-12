@@ -66,7 +66,7 @@ class SemanticSegmentationSegformer(SemanticSegmentationBase):
         ("b4", (512, 512), "ade20k"),
         ("b5", (1024, 1024), "cityscapes"),
     ]
-    # TODO(dvdmc): this can be used to make mappings more generic NOTE: not currently used
+    # TODO(anonym): this can be used to make mappings more generic NOTE: not currently used
     available_mappings = [
         {"in": "ade20k", "out": "nyu40", "map": get_ade20k_to_scannet40_map()},
     ]
@@ -139,7 +139,7 @@ class SemanticSegmentationSegformer(SemanticSegmentationBase):
         else:
             raise NotImplementedError(
                 f"Segformer only supports pre-trained model for now. You tried to load a custom model: {model_path}"
-            )  # TODO(dvdmc): allow to load a custom model
+            )  # TODO(anonym): allow to load a custom model
         model = model.to(device).eval()
         transform = AutoImageProcessor.from_pretrained(
             f"nvidia/segformer-{model_variant}-finetuned-{dataset}-{image_size[0]}-{image_size[1]}"

@@ -71,9 +71,9 @@
 # local_position
 /**/local_position:
   ros__parameters:
-    frame_id: "odom" # dvdmc: previous value: "map" check. Probably this makes the land mode go to odom instead of map.
+    frame_id: "odom" # NOTE: previous value: "map" check. Probably this makes the land mode go to odom instead of map.
     tf.send: false
-    tf.frame_id: "odom" # dvdmc: previous value: "map" check
+    tf.frame_id: "odom" # NOTE: previous value: "map" check
     tf.child_frame_id: "base_link"
     tf.send_fcu: false
 

@@ -292,7 +292,7 @@ class SemanticNode(Node):
         )
         odom_msg = self.to_odom_msg(
             translation_ros, rotation_ros, self.get_clock().now().to_msg()
-        )  # TODO(dvdmc): check if we want to pass the time directly instead of msg
+        )  # TODO(anonym): check if we want to pass the time directly instead of msg
         self.tf_broadcaster.sendTransform(self.odom_msg_to_tf_msg(odom_msg))
         self.pub_camera_odometry.publish(odom_msg)
 

@@ -50,7 +50,7 @@ class SemanticMap {
     return (1.0 - 1.0 / (1.0 + std::exp(logods)));
   }
 
-  // TODO(dvdmc): Check if this causes too much artifacts.
+  // TODO(anonym): Check if this causes too much artifacts.
   [[nodiscard]] VSemanticLogOds vlogods(const VSemanticProb& probs) {
     VSemanticLogOds vec(_sem_dim);
     for (int i = 0; i < _sem_dim; ++i) {

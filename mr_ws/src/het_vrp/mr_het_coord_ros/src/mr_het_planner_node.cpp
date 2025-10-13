@@ -4,7 +4,7 @@ MRPlannerNode::MRPlannerNode() : Node("mr_het_planner_node")
 {
     readROSParameters();
 
-    for (int i = 0; i < agent_types_.size(); i++)
+    for (size_t i = 0; i < agent_types_.size(); i++)
     {
         if (agent_types_[i] == AgentType::GROUND)
         {
@@ -43,13 +43,13 @@ void MRPlannerNode::readROSParameters()
 
 void MRPlannerNode::pathsCallback(const mr_het_coord_ros::msg::VrpSolution::SharedPtr msg)
 {
-    int num_agents = msg->num_agents;
+    size_t num_agents = msg->num_agents;
     if (num_agents != agent_types_.size())
     {
         RCLCPP_ERROR(this->get_logger(), "Number of paths does not match number of agents");
         return;
     }
-    for (int i = 0; i < num_agents; i++)
+    for (size_t i = 0; i < num_agents; i++)
     {
         if (agent_types_[i] == AgentType::GROUND)
         {
@@ -76,7 +76,7 @@ void MRPlannerNode::sendUGVAction(geometry_msgs::msg::PoseArray const &path, int
     auto goal_msg = UGVFollowPath::Goal();
     std::vector<geometry_msgs::msg::PoseStamped> poses_msg;
 
-    for (int i = 0; i < path.poses.size(); i++)
+    for (size_t i = 0; i < path.poses.size(); i++)
     {
         geometry_msgs::msg::PoseStamped pose;
         pose.header.frame_id = "map";
@@ -115,7 +115,7 @@ void MRPlannerNode::sendUAVAction(geometry_msgs::msg::PoseArray const &path, int
     uav_goal_msg.header.frame_id = "map";
     uav_goal_msg.max_speed = 0.5;
 
-    for (int i = 0; i < path.poses.size(); i++)
+    for (size_t i = 0; i < path.poses.size(); i++)
     {
         as2_msgs::msg::PoseWithID pose;
         pose.id = i;

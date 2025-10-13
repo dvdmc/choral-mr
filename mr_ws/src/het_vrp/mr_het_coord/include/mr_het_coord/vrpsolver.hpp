@@ -67,7 +67,7 @@ class VRPSolver {
   std::vector<std::vector<int64_t>> solveWithMaxSpan(
       std::vector<std::vector<int64_t>> distance_matrix,
       std::vector<std::vector<std::vector<int64_t>>> cost_matrices,
-      int64_t cost_scaling, std::vector<float> velocities, int num_vehicles,
+      float cost_scaling, std::vector<float> velocities, int num_vehicles,
       int depot_idx, int solver_seconds,
       std::vector<int64_t>& resulting_route_distances) const;
 
@@ -129,7 +129,7 @@ class VRPSolver {
       RoutingModel& routing, RoutingIndexManager& manager,
       const std::vector<std::vector<int64_t>>& distance_matrix,
       const std::vector<std::vector<std::vector<int64_t>>>& cost_matrices,
-      int64_t cost_scaling, std::vector<float> velocities,
+      float cost_scaling, std::vector<float> velocities,
       std::vector<int>& transit_callback_indeces) const;
 
   void addMaxSpanConstraint_(RoutingModel& routing, int64_t avg_distance,

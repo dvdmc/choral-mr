@@ -39,6 +39,7 @@ public:
   float width_m = -1;
   int height_px = -1;
   float height_m = -1;
+  float resolution = 1.0; // resolution for [m/pixel]
   std::vector<float> origin = {0.0, 0.0};
   std::vector<std::vector<int>> grid_map;
   std::vector<std::vector<float>> sdf_map;
@@ -48,8 +49,6 @@ public:
   int FREE_THRESH = 90;     // if %<90 the cell is free. Values from 0-100
   float DIST_THRESH = 0.5f; // meters
   int TRAVERSABILITY_VALUE = 51;
-  
-  float resolution = 1.0; // resolution for [m/pixel]
 
   GridMap(float const _resolution, std::vector<float> const _origin)
       : resolution(_resolution), origin(_origin) {}
@@ -118,8 +117,8 @@ public:
   {
     // Convert world coordinates to grid coordinates
     std::vector<int> grid = worldToGrid(x, y);
-    return grid[0] >= 0 && grid[0] < grid_map.size() && grid[1] >= 0 &&
-           grid[1] < grid_map[0].size() && // Check limits
+    return grid[0] >= 0 && grid[0] < int(grid_map.size()) && grid[1] >= 0 &&
+           grid[1] < int(grid_map[0].size()) && // Check limits
            // Check if the cell is free without SDF
            ((!use_sdf && grid_map[grid[0]][grid[1]] < FREE_THRESH) ||
             // Use SDF to compute dist to obstacles
@@ -165,7 +164,7 @@ public:
     }
 
     // Calculate the number of steps based on the distance
-    int num_steps = int(distance / increment) + 1;
+    // int num_steps = int(distance / increment) + 1;
 
     // Step along the line and check each point
     float t = 0.0f;
@@ -319,9 +318,9 @@ public:
     std::vector<std::vector<int>> binary_grid(
         grid_map.size(), std::vector<int>(grid_map[0].size()));
 
-    for (int i = 0; i < grid_map.size(); ++i)
+    for (size_t i = 0; i < grid_map.size(); ++i)
     {
-      for (int j = 0; j < grid_map[i].size(); ++j)
+      for (size_t j = 0; j < grid_map[i].size(); ++j)
       {
         if (grid_map[i][j] < FREE_THRESH)
         {
@@ -339,9 +338,9 @@ public:
     float inf = std::numeric_limits<float>::infinity();
 
     // Initialize distance grid: 0 for obstacles, inf for free space
-    for (int i = 0; i < dist_grid.size(); i++)
+    for (size_t i = 0; i < dist_grid.size(); i++)
     {
-      for (int j = 0; j < dist_grid[i].size(); j++)
+      for (size_t j = 0; j < dist_grid[i].size(); j++)
       {
         if (binary_grid[i][j] == 1)
         {
@@ -357,9 +356,9 @@ public:
     std::queue<std::pair<int, int>> q;
 
     // Add all the origin (obstacle) points to the queue
-    for (int i = 0; i < binary_grid.size(); i++)
+    for (size_t i = 0; i < binary_grid.size(); i++)
     {
-      for (int j = 0; j < binary_grid[i].size(); j++)
+      for (size_t j = 0; j < binary_grid[i].size(); j++)
       {
         if (binary_grid[i][j] == 1)
         {
@@ -381,7 +380,7 @@ public:
         dist_grid[i - 1][j] = dist_grid[i][j] + 1.0f;
         q.push({i - 1, j});
       }
-      if (i < grid_map.size() - 1 && dist_grid[i + 1][j] > dist_grid[i][j] + 1)
+      if (i < int(grid_map.size()) - 1 && dist_grid[i + 1][j] > dist_grid[i][j] + 1)
       {
         dist_grid[i + 1][j] = dist_grid[i][j] + 1.0f;
         q.push({i + 1, j});
@@ -391,7 +390,7 @@ public:
         dist_grid[i][j - 1] = dist_grid[i][j] + 1.0f;
         q.push({i, j - 1});
       }
-      if (j < grid_map[0].size() - 1 &&
+      if (j < int(grid_map[0].size()) - 1 &&
           dist_grid[i][j + 1] > dist_grid[i][j] + 1)
       {
         dist_grid[i][j + 1] = dist_grid[i][j] + 1.0f;
@@ -400,9 +399,9 @@ public:
     }
 
     // Transform to real world coordinates
-    for (int i = 0; i < dist_grid.size(); i++)
+    for (size_t i = 0; i < dist_grid.size(); i++)
     {
-      for (int j = 0; j < dist_grid[i].size(); j++)
+      for (size_t j = 0; j < dist_grid[i].size(); j++)
       {
         dist_grid[i][j] = dist_grid[i][j] * resolution;
         if (dist_grid[i][j] > max_dist)
@@ -427,10 +426,10 @@ public:
   std::vector<std::vector<float>> getFreeSpace() const
   {
     std::vector<std::vector<float>> freeSpace;
-    for (int r = grid_map.size() - 1; r >= 0;
+    for (int r = int(grid_map.size()) - 1; r >= 0;
          r--) // Gather the tasks the other way around in the vertical axis
     {
-      for (int c = 0; c < grid_map[0].size(); c++)
+      for (size_t c = 0; c < grid_map[0].size(); c++)
       {
         if (grid_map[r][c] < FREE_THRESH)
         {
@@ -445,22 +444,22 @@ public:
     return freeSpace;
   }
 
-  std::vector<std::vector<float>> getTasksFree(int size) const
+  std::vector<std::vector<float>> getTasksFree(size_t size) const
   {
     std::vector<std::vector<float>> tasks;
     int num_free = 0;
     // Check if there is a space of "size" with at least FREE_THRESH%
     // of free space. The task will be at the center
-    for (int r = 0; r < grid_map.size() - size;
+    for (size_t r = 0; r < grid_map.size() - size;
          r +=
          size) // Gather the tasks the other way around in the vertical axis
     {
-      for (int c = 0; c < grid_map[0].size() - size; c += size)
+      for (size_t c = 0; c < grid_map[0].size() - size; c += size)
       {
         // Check the space to be covered
-        for (int i = 0; i < size; i++)
+        for (size_t i = 0; i < size; i++)
         {
-          for (int j = 0; j < size; j++)
+          for (size_t j = 0; j < size; j++)
           {
             if (grid_map[r + i][c + j] < FREE_THRESH)
             {
@@ -490,10 +489,10 @@ public:
   std::vector<std::vector<float>> getTasksFromGridMap() const
   {
     std::vector<std::vector<float>> tasks;
-    for (int r = 0; r < grid_map.size() - 1;
+    for (size_t r = 0; r < grid_map.size() - 1;
          r++) // Gather the tasks the other way around in the vertical axis
     {
-      for (int c = 0; c < grid_map[0].size() - 1; c++)
+      for (size_t c = 0; c < grid_map[0].size() - 1; c++)
       {
         if (grid_map[r][c] == 22) // 22 = 100 - int(200 * 100 / 255) color is 200 in PGM
         {
@@ -586,15 +585,15 @@ public:
     {
       grid_path.push_back(worldToGrid(p[0], p[1]));
     }
-    for (int r = 0; r < grid_map.size(); ++r)
+    for (size_t r = 0; r < grid_map.size(); ++r)
     {
-      for (int c = 0; c < grid_map[0].size(); ++c)
+      for (size_t c = 0; c < grid_map[0].size(); ++c)
       {
         bool is_in_path = false;
         int index = 0;
         for (auto const &grid : grid_path)
         {
-          if (grid[0] == r && grid[1] == c)
+          if (size_t(grid[0]) == r && size_t(grid[1]) == c)
           {
             is_in_path = true;
             break;
@@ -628,9 +627,9 @@ public:
       grid_paths.push_back(grid_path);
     }
 
-    for (int r = 0; r < grid_map.size(); ++r)
+    for (size_t r = 0; r < grid_map.size(); ++r)
     {
-      for (int c = 0; c < grid_map[0].size(); ++c)
+      for (size_t c = 0; c < grid_map[0].size(); ++c)
       {
         bool is_in_path = false;
         int index = 0; // Index for the agent assignment
@@ -639,7 +638,7 @@ public:
         { // For each agent
           for (auto const &grid : grid_path)
           { // For each position
-            if (grid[0] == r && grid[1] == c)
+            if (size_t(grid[0]) == r && size_t(grid[1]) == c)
             {
               is_in_path = true;
               break;
@@ -664,7 +663,7 @@ public:
       std::cout << "\n";
     }
 
-    for (int k = 0; k < grid_paths.size(); ++k)
+    for (size_t k = 0; k < grid_paths.size(); ++k)
     {
       std::cout << "Agent " << k << ": ";
       for (auto const &grid : grid_paths[k])

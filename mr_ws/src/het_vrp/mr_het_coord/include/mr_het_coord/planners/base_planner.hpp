@@ -27,7 +27,7 @@ class BasePlanner {
     if (!path.empty()) {
       // Compute distance
       float distance = 0.0;
-      for (int i = 1; i < path.size(); ++i) {
+      for (size_t i = 1; i < path.size(); ++i) {
         float x = path[i][0] - path[i - 1][0];
         float y = path[i][1] - path[i - 1][1];
         distance += sqrt(x * x + y * y);
@@ -121,7 +121,7 @@ class BasePlanner {
     float total_accident_rate = 0.0f;
     float dist_interv = map.resolution;
 
-    for (int i = 1; i < path.size(); ++i) {
+    for (size_t i = 1; i < path.size(); ++i) {
       float dx = path[i][0] - path[i - 1][0];
       float dy = path[i][1] - path[i - 1][1];
       float total_dist = sqrt(dx * dx + dy * dy);
@@ -171,7 +171,7 @@ class BasePlanner {
 
     int lastKeptPoint = 0;  // Index of the last kept point
 
-    for (int i = 1; i < path.size(); i++) {
+    for (size_t i = 1; i < path.size(); i++) {
       // Check if the next point is visible from the last kept point
       // TODO: Below is not good practice since we are modifying i inside the
       // for

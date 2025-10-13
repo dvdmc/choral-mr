@@ -41,7 +41,7 @@ void MRMapNode::mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
     map_ = std::make_shared<GridMap>(map_resolution_, map_center_);
     // Build a matrix from the data
     std::vector<std::vector<int>> grid_map(msg->info.height, std::vector<int>(msg->info.width, 0));
-    for (int i = 0; i < msg->data.size(); i++)
+    for (size_t i = 0; i < msg->data.size(); i++)
     {
         grid_map[i / msg->info.width][i % msg->info.width] = msg->data[i];
     }

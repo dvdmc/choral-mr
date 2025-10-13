@@ -24,7 +24,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node") {
 
   // Get tasks
   tasks_ = map_->getTasksFromGridMap();
-  RCLCPP_INFO(this->get_logger(), "Found %d tasks", tasks_.size());
+  RCLCPP_INFO(this->get_logger(), "Found %ld tasks", tasks_.size());
   RCLCPP_INFO(this->get_logger(), "Running PRM");
   path_planner_ = std::make_shared<PRM>(*map_, tasks_, step_size_, 5.0f);
 
@@ -41,7 +41,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node") {
     auto end = std::chrono::high_resolution_clock::now();
     auto duration =
         std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-    RCLCPP_WARN(this->get_logger(), "Time taken for computing paths: %d ms",
+    RCLCPP_WARN(this->get_logger(), "Time taken for computing paths: %ld ms",
                 duration.count());
 
     // Save paths to file
@@ -105,7 +105,7 @@ void MRVRPNode::readROSParameters() {
   this->declare_parameter("results_path", "none");
 
   // VRP config
-  this->declare_parameter("cost_scaling", 5.0);
+  this->declare_parameter("cost_scaling", 5.0f);
   this->declare_parameter("lambda_good_trav", 0.00001);
   this->declare_parameter("lambda_bad_trav", 5.0);
   this->declare_parameter("gamma_collision", 20.0);
@@ -175,7 +175,7 @@ void MRVRPNode::mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
   // Build a matrix from the data
   std::vector<std::vector<int>> grid_map(msg->info.height,
                                          std::vector<int>(msg->info.width, 0));
-  for (int i = 0; i < msg->data.size(); i++) {
+  for (size_t i = 0; i < msg->data.size(); i++) {
     grid_map[i / msg->info.width][i % msg->info.width] = msg->data[i];
   }
   map_->setMap(msg->info.width, msg->info.height, grid_map);

@@ -178,8 +178,9 @@ void VRPSolver::addCostHeterogeneous_(
     RoutingModel& routing, RoutingIndexManager& manager,
     std::vector<std::vector<int64_t>> const& distance_matrix,
     std::vector<std::vector<std::vector<int64_t>>> const& cost_matrices,
-    int64_t cost_scaling, std::vector<float> velocities,
+    float cost_scaling, std::vector<float> velocities,
     std::vector<int>& transit_callback_indeces) const {
+
   for (size_t vehicle_id = 0; vehicle_id < cost_matrices.size(); ++vehicle_id) {
     int64_t const transit_callback_index_vehicle =
         routing.RegisterTransitCallback(
@@ -188,13 +189,12 @@ void VRPSolver::addCostHeterogeneous_(
                                         int64_t const to_index) -> int64_t {
               int const from_node = manager.IndexToNode(from_index).value();
               int const to_node = manager.IndexToNode(to_index).value();
-              // TODO: Simplify this to avoid type conversion.
               // CAUTION: This might overflow and the max possible cost is not
               // enforced anymore
               return int64_t(double(distance_matrix[from_node][to_node]) /
                              velocities[vehicle_id]) +
-                     cost_scaling *
-                         cost_matrices[vehicle_id][from_node][to_node];
+                     int64_t(cost_scaling *
+                         double(cost_matrices[vehicle_id][from_node][to_node]));
             });
 
     transit_callback_indeces.push_back(
@@ -243,7 +243,7 @@ int64_t VRPSolver::getMaxDistance_(
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j < distance_matrix.size(); ++j) {
       if (distance_matrix[i][j] > max_distance &&
-          distance_matrix[i][j] != IMPOSIBLE_COST) {
+          distance_matrix[i][j] != IMPOSIBLE_COST * DISTANCE_SCALING) {
         max_distance = distance_matrix[i][j];
       }
     }
@@ -258,7 +258,7 @@ int64_t VRPSolver::getMaxCost_(
     for (size_t i = 0; i < cost_matrices[k].size(); ++i) {
       for (size_t j = 0; j < cost_matrices[k].size(); ++j) {
         if (cost_matrices[k][i][j] > max_cost &&
-            cost_matrices[k][i][j] != IMPOSIBLE_COST) {
+            cost_matrices[k][i][j] != IMPOSIBLE_COST * DISTANCE_SCALING) {
           max_cost = cost_matrices[k][i][j];
         }
       }
@@ -274,7 +274,7 @@ std::vector<int64_t> VRPSolver::getMedianCost_(
     std::vector<int64_t> costs;
     for (size_t i = 0; i < cost_matrices[k].size(); ++i) {
       for (size_t j = 0; j < cost_matrices[k].size(); ++j) {
-        if (cost_matrices[k][i][j] != IMPOSIBLE_COST) {
+        if (cost_matrices[k][i][j] != IMPOSIBLE_COST * DISTANCE_SCALING) {
           costs.push_back(cost_matrices[k][i][j]);
         }
       }
@@ -302,7 +302,7 @@ int64_t VRPSolver::getMedianDistance_(
   std::vector<int64_t> distances;
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j < distance_matrix.size(); ++j) {
-      if (distance_matrix[i][j] != IMPOSIBLE_COST) {
+      if (distance_matrix[i][j] != IMPOSIBLE_COST * DISTANCE_SCALING) {
         distances.push_back(distance_matrix[i][j]);
       }
     }
@@ -331,7 +331,7 @@ void VRPSolver::normalizeDistanceMatrix_(
   std::cout << "Scaling distance: " << scaling << std::endl;
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j < distance_matrix.size(); ++j) {
-      if (distance_matrix[i][j] != IMPOSIBLE_COST) {
+      if (distance_matrix[i][j] != IMPOSIBLE_COST * DISTANCE_SCALING) {
         distance_matrix[i][j] = (double)distance_matrix[i][j] / scaling;
       }
     }
@@ -351,7 +351,7 @@ void VRPSolver::normalizeCostMatrices_(
   for (size_t k = 0; k < cost_matrices.size(); ++k) {
     for (size_t i = 0; i < cost_matrices[k].size(); ++i) {
       for (size_t j = 0; j < cost_matrices[k].size(); ++j) {
-        if (cost_matrices[k][i][j] != IMPOSIBLE_COST) {
+        if (cost_matrices[k][i][j] != IMPOSIBLE_COST * DISTANCE_SCALING) {
           cost_matrices[k][i][j] = (double)cost_matrices[k][i][j] / scaling;
         }
       }
@@ -362,7 +362,7 @@ void VRPSolver::normalizeCostMatrices_(
 std::vector<std::vector<int64_t>> VRPSolver::solveWithMaxSpan(
     std::vector<std::vector<int64_t>> distance_matrix,
     std::vector<std::vector<std::vector<int64_t>>> cost_matrices,
-    int64_t cost_scaling, std::vector<float> velocities, int num_vehicles,
+    float cost_scaling, std::vector<float> velocities, int num_vehicles,
     int depot_idx, int solver_seconds,
     std::vector<int64_t>& resulting_route_costs) const {
   // Init the solver
@@ -377,10 +377,9 @@ std::vector<std::vector<int64_t>> VRPSolver::solveWithMaxSpan(
   // Get median distance for adding a capacity in MaxSpan
   int64_t median_dist = getMedianDistance_(distance_matrix);
 
-  // TODO: clean this up
   int64_t min_time_dist = median_dist;
   for (size_t i = 1; i < velocities.size(); ++i) {
-    int64_t time = float(median_dist) / velocities[i] * DISTANCE_SCALING;
+    int64_t time = double(median_dist) / velocities[i];
     if (velocities[i] < min_time_dist) {
       min_time_dist = time;
     }

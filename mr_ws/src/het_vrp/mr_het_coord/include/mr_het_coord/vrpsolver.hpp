@@ -91,15 +91,15 @@ class VRPSolver {
       1e10;  // As a prohibitive value that can also be converted to double
 
   void makeAsymmetric_(std::vector<std::vector<int64_t>> matrix) const {
-    for (int i = 0; i < matrix.size(); ++i) {
+    for (size_t i = 0; i < matrix.size(); ++i) {
       matrix[i][0] = 0;  // Going from any node to the virtual depot is free
     }
   }
 
   void makeAsymmetric_(
       std::vector<std::vector<std::vector<int64_t>>> matrix) const {
-    for (int k = 0; k < matrix.size(); ++k) {
-      for (int i = 0; i < matrix[k].size(); ++i) {
+    for (size_t k = 0; k < matrix.size(); ++k) {
+      for (size_t i = 0; i < matrix[k].size(); ++i) {
         matrix[k][i][0] =
             0;  // Going from any node to the virtual depot is free
       }
@@ -129,11 +129,11 @@ class VRPSolver {
       RoutingModel& routing, RoutingIndexManager& manager,
       const std::vector<std::vector<int64_t>>& distance_matrix,
       const std::vector<std::vector<std::vector<int64_t>>>& cost_matrices,
-      float cost_scaling, std::vector<float> velocities,
+      float cost_scaling, std::vector<float>& velocities,
       std::vector<int>& transit_callback_indeces) const;
 
-  void addMaxSpanConstraint_(RoutingModel& routing, int64_t avg_distance,
-                             int64_t avg_cost, int num_nodes, int num_vehicles,
+  void addMaxSpanConstraint_(RoutingModel& routing, int64_t median_dist,
+                             int64_t median_cost, int num_nodes, int num_vehicles,
                              std::vector<int> transit_callback_indeces) const;
 
   RoutingSearchParameters addInitialHeuristic_(RoutingIndexManager& manager,

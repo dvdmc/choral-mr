@@ -29,6 +29,6 @@
     d_05_collision: 0.1 # Distance at which the rate is 0.5 (high accident likelihood). We set it to 0.5m
 
 
-    solver_seconds: 120
+    solver_seconds: 5
 
     results_path: /root/results/

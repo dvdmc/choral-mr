@@ -18,7 +18,7 @@ void VRPSolver::distanceFromPathPlanner(
 
   std::cout << "Start distances" << std::endl;
   auto start = std::chrono::high_resolution_clock::now();
-  int total = positions.size() * positions.size();
+  // int total = positions.size() * positions.size();
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j <= i; ++j) {
       std::vector<float> position1 = positions[i];
@@ -60,7 +60,7 @@ void VRPSolver::distanceFromPaths(
       paths.size(), std::vector<int64_t>(paths.size(), 0));
 
   std::cout << "Start distances" << std::endl;
-  int total = paths.size() * paths.size();
+  // int total = paths.size() * paths.size();
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j <= i; ++j) {
       float path_dist = path_planner.computeDistance(paths[i][j]);
@@ -96,7 +96,7 @@ void VRPSolver::uniformCostMatrices(
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j < distance_matrix.size(); ++j) {
       if (distance_matrix[i][j] >= IMPOSIBLE_COST * DISTANCE_SCALING) {
-        for (size_t k = 0; k < num_vehicles; ++k) {
+        for (int k = 0; k < num_vehicles; ++k) {
           cost_matrices[k][i][j] = IMPOSIBLE_COST * DISTANCE_SCALING;
         }
       }
@@ -130,7 +130,7 @@ void VRPSolver::hetPlatformCostMatrices(
     for (size_t j = 0; j < i; ++j)  // V is the number of nodes
     {
       // Consider untraversable paths
-      if(paths[i][j].empty()) {
+      if (paths[i][j].empty()) {
         aerial_cost_matrix[i][j] = IMPOSIBLE_COST * DISTANCE_SCALING;
         aerial_cost_matrix[j][i] = IMPOSIBLE_COST * DISTANCE_SCALING;
         ground_cost_matrix[i][j] = IMPOSIBLE_COST * DISTANCE_SCALING;
@@ -138,27 +138,27 @@ void VRPSolver::hetPlatformCostMatrices(
         continue;
       }
 
-      float aerial_safety_cost = path_planner.computeSafetyCost(
-                            grid_map, paths[i][j], AgentType::AERIAL,
-                            lambda_good_trav, lambda_bad_trav,
-                            gamma_collision, d_05_collision) *
-                        DISTANCE_SCALING;
+      float aerial_safety_cost =
+          path_planner.computeSafetyCost(
+              grid_map, paths[i][j], AgentType::AERIAL, lambda_good_trav,
+              lambda_bad_trav, gamma_collision, d_05_collision) *
+          DISTANCE_SCALING;
 
       aerial_cost_matrix[i][j] = aerial_safety_cost;
       aerial_cost_matrix[j][i] = aerial_cost_matrix[i][j];
 
-      float ground_safety_cost = path_planner.computeSafetyCost(
-                                   grid_map, paths[i][j], AgentType::GROUND,
-                                   lambda_good_trav, lambda_bad_trav,
-                                   gamma_collision, d_05_collision) *
-                               DISTANCE_SCALING;
+      float ground_safety_cost =
+          path_planner.computeSafetyCost(
+              grid_map, paths[i][j], AgentType::GROUND, lambda_good_trav,
+              lambda_bad_trav, gamma_collision, d_05_collision) *
+          DISTANCE_SCALING;
 
       ground_cost_matrix[i][j] = ground_safety_cost;
       ground_cost_matrix[j][i] = ground_cost_matrix[i][j];
     }
   }
 
-  for (size_t k = 0; k < num_vehicles; ++k) {
+  for (int k = 0; k < num_vehicles; ++k) {
     if (agent_types[k] == AgentType::AERIAL) {
       cost_matrices[k] = aerial_cost_matrix;
     } else {
@@ -178,9 +178,8 @@ void VRPSolver::addCostHeterogeneous_(
     RoutingModel& routing, RoutingIndexManager& manager,
     std::vector<std::vector<int64_t>> const& distance_matrix,
     std::vector<std::vector<std::vector<int64_t>>> const& cost_matrices,
-    float cost_scaling, std::vector<float> velocities,
+    float cost_scaling, std::vector<float>& velocities,
     std::vector<int>& transit_callback_indeces) const {
-
   for (size_t vehicle_id = 0; vehicle_id < cost_matrices.size(); ++vehicle_id) {
     int64_t const transit_callback_index_vehicle =
         routing.RegisterTransitCallback(
@@ -189,12 +188,19 @@ void VRPSolver::addCostHeterogeneous_(
                                         int64_t const to_index) -> int64_t {
               int const from_node = manager.IndexToNode(from_index).value();
               int const to_node = manager.IndexToNode(to_index).value();
-              // CAUTION: This might overflow and the max possible cost is not
-              // enforced anymore
+
+              // Remove impossible paths
+              if (distance_matrix[from_node][to_node] >=
+                      IMPOSIBLE_COST * DISTANCE_SCALING ||
+                  cost_matrices[vehicle_id][from_node][to_node] >=
+                      IMPOSIBLE_COST * DISTANCE_SCALING) {
+                return IMPOSIBLE_COST * DISTANCE_SCALING;
+              }
+
               return int64_t(double(distance_matrix[from_node][to_node]) /
                              velocities[vehicle_id]) +
-                     int64_t(cost_scaling *
-                         double(cost_matrices[vehicle_id][from_node][to_node]));
+                     cost_scaling *
+                         double(cost_matrices[vehicle_id][from_node][to_node]);
             });
 
     transit_callback_indeces.push_back(
@@ -206,14 +212,13 @@ void VRPSolver::addCostHeterogeneous_(
 }
 
 void VRPSolver::addMaxSpanConstraint_(
-    RoutingModel& routing, int64_t median, int64_t min_cost, int num_nodes,
+    RoutingModel& routing, int64_t median, int64_t median_cost, int num_nodes,
     int num_vehicles, std::vector<int> transit_callback_indeces) const {
   std::cout << "Median distance: " << median << std::endl;
-  std::cout << "Median (risk) cost: " << min_cost << std::endl;
+  std::cout << "Median safety cost: " << median_cost << std::endl;
   // Minimize each vehicles' global span
   int64_t est_route_cost = (median * (num_nodes) / (num_vehicles)) +
-                           (min_cost * (num_nodes) / (num_vehicles)) *
-                               0.001;  // Ideally no added cost
+                           (median_cost * (num_nodes) / (num_vehicles));  // Ideally no added cost
   std::cout << "Median route cost: " << est_route_cost << std::endl;
 
   routing.AddDimensionWithVehicleTransits(
@@ -269,12 +274,16 @@ int64_t VRPSolver::getMaxCost_(
 
 std::vector<int64_t> VRPSolver::getMedianCost_(
     std::vector<std::vector<std::vector<int64_t>>> const& cost_matrices) const {
+
+  // add a consideration for very high costs to not consider them in the median
+  int64_t high_cost = 0.9 * DISTANCE_SCALING;
   std::vector<int64_t> median_costs;
   for (size_t k = 0; k < cost_matrices.size(); ++k) {
     std::vector<int64_t> costs;
     for (size_t i = 0; i < cost_matrices[k].size(); ++i) {
       for (size_t j = 0; j < cost_matrices[k].size(); ++j) {
-        if (cost_matrices[k][i][j] != IMPOSIBLE_COST * DISTANCE_SCALING) {
+        if (cost_matrices[k][i][j] != IMPOSIBLE_COST * DISTANCE_SCALING &&
+            cost_matrices[k][i][j] < high_cost) {
           costs.push_back(cost_matrices[k][i][j]);
         }
       }
@@ -377,20 +386,20 @@ std::vector<std::vector<int64_t>> VRPSolver::solveWithMaxSpan(
   // Get median distance for adding a capacity in MaxSpan
   int64_t median_dist = getMedianDistance_(distance_matrix);
 
-  int64_t min_time_dist = median_dist;
+  int64_t max_time_dist = median_dist;
   for (size_t i = 1; i < velocities.size(); ++i) {
     int64_t time = double(median_dist) / velocities[i];
-    if (velocities[i] < min_time_dist) {
-      min_time_dist = time;
+    if (time > max_time_dist) {
+      max_time_dist = time;
     }
   }
 
   std::vector<int64_t> median_costs = getMedianCost_(cost_matrices);
 
-  int64_t min_median_cost = median_costs[0];
+  int64_t max_median_cost = median_costs[0];
   for (size_t i = 1; i < median_costs.size(); ++i) {
-    if (median_costs[i] < min_median_cost) {
-      min_median_cost = median_costs[i];
+    if (median_costs[i] > max_median_cost) {
+      max_median_cost = median_costs[i];
     }
   }
 
@@ -399,7 +408,7 @@ std::vector<std::vector<int64_t>> VRPSolver::solveWithMaxSpan(
   addCostHeterogeneous_(routing, manager, distance_matrix, cost_matrices,
                         cost_scaling, velocities, transit_callback_indeces);
 
-  addMaxSpanConstraint_(routing, min_time_dist, min_median_cost,
+  addMaxSpanConstraint_(routing, max_time_dist, max_median_cost,
                         distance_matrix.size(), num_vehicles,
                         transit_callback_indeces);
 
@@ -426,7 +435,7 @@ std::vector<std::vector<int64_t>> VRPSolver::getSolution_(
     Assignment const& solution) const {
   int num_vehicles = routing.vehicles();
   std::vector<std::vector<int64_t>> routes(num_vehicles);
-  for (size_t vehicle_id = 0; vehicle_id < num_vehicles; ++vehicle_id) {
+  for (int vehicle_id = 0; vehicle_id < num_vehicles; ++vehicle_id) {
     int64_t index = routing.Start(vehicle_id);
     while (!routing.IsEnd(index)) {
       int const node_index = manager.IndexToNode(index).value();
@@ -442,7 +451,7 @@ void VRPSolver::printSolution_(RoutingIndexManager const& manager,
                                Assignment const& solution) const {
   int64_t total_cost = 0;
   // int64_t total_load = 0;
-  for (size_t vehicle_id = 0; vehicle_id < routing.vehicles(); ++vehicle_id) {
+  for (int vehicle_id = 0; vehicle_id < routing.vehicles(); ++vehicle_id) {
     int64_t index = routing.Start(vehicle_id);
     LOG(INFO) << "Route for Vehicle " << vehicle_id << ":";
     int64_t route_cost = 0;
@@ -471,7 +480,7 @@ std::vector<int64_t> VRPSolver::getRouteCosts_(
     Assignment const& solution, std::vector<int64_t>& route_costs) const {
   int num_vehicles = routing.vehicles();
   route_costs = std::vector<int64_t>(num_vehicles, 0);
-  for (size_t vehicle_id = 0; vehicle_id < routing.vehicles(); ++vehicle_id) {
+  for (int vehicle_id = 0; vehicle_id < routing.vehicles(); ++vehicle_id) {
     int64_t index = routing.Start(vehicle_id);
     int64_t route_distance = 0;
     while (!routing.IsEnd(index)) {

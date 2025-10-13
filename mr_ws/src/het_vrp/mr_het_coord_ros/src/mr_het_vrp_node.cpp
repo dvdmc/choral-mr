@@ -408,7 +408,6 @@ void MRVRPNode::solveVRP(
     het_path_ = path_;
   }
 
-  // TODO: CONTINUE HERE: ADD THE COSTS PARAMS AND CHECK THAT EVERYTHING WORKS
   // OUT Store ResultsEx
   ResultExp result;
   result.method = "maxSpan_" + method_str;

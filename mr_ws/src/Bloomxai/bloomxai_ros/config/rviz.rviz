@@ -231,7 +231,9 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        PRM: true
+        PRM: false
+        hetPath: true
+        homPath: false
         tasks: true
       Topic:
         Depth: 5

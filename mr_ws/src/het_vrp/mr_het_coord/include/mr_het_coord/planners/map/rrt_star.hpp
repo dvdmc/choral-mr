@@ -28,7 +28,7 @@ struct RRTNode {
 class RRTStar : public BasePlanner {
  public:
   RRTStar(GridMap const& map, float step_size, int max_samples,
-          float search_radius, bool anytime = false)
+          float search_radius, std::mt19937& rng, bool anytime = false)
       : BasePlanner(),
         map_(map),
         step_size_(step_size),
@@ -37,7 +37,8 @@ class RRTStar : public BasePlanner {
         search_radius_(search_radius),
         anytime_(anytime),
         minXY_(map.getMinXY()),
-        maxXY_(map.getMaxXY()) {}
+        maxXY_(map.getMaxXY()),
+        rng_(rng) {}
 
   std::vector<std::vector<float>> searchPath(std::vector<float> start,
                                              std::vector<float> goal,
@@ -60,6 +61,7 @@ class RRTStar : public BasePlanner {
   bool anytime_;
   std::vector<float> minXY_;
   std::vector<float> maxXY_;
+  std::mt19937 &rng_;
 
   /**
    * Reconstruct the path from the given node to the root of the tree.

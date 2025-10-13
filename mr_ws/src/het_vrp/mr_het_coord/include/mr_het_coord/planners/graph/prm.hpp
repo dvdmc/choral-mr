@@ -15,7 +15,7 @@ class PRM : public BasePlanner
 {
 public:
   PRM(GridMap &map, std::vector<std::vector<float>> &tasks, float step_size,
-      float search_radius)
+      float search_radius, std::mt19937& rng)
       : BasePlanner(),
         map_(map),
         step_size_(step_size),
@@ -23,7 +23,8 @@ public:
         visibility_step_(step_size / 10.0f),
         search_radius_(search_radius),
         minXY_(map.getMinXY()),
-        maxXY_(map.getMaxXY())
+        maxXY_(map.getMaxXY()),
+        rng_(rng)
   {
     graph_ = buildGraphFromTasks_(map, tasks);
   }
@@ -91,6 +92,7 @@ private:
   float visibility_step_;
   float search_radius_;
   int max_samples_;
+  std::mt19937 &rng_;
 
   std::vector<float> minXY_;
   std::vector<float> maxXY_;
@@ -131,6 +133,8 @@ private:
    * these positions. The resulting graph is then returned.
    *
    * @param map The map to use for sampling positions
+   * @param max_samples The maximum number of positions to sample
+   * @param rng The random number generator to use for sampling
    * @return The graph built from the sampled positions
    */
   BaseGraph buildGraphFromMap_(GridMap const &map, int max_samples);

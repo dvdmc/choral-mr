@@ -1,7 +1,17 @@
 #include "mr_het_coord_ros/mr_het_vrp_node.hpp"
 
-MRVRPNode::MRVRPNode() : Node("mr_coord_node") {
+MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
   readROSParameters();
+
+  experiment_id_ = std::chrono::system_clock::now().time_since_epoch().count();
+
+  if (!fixed_random_seed_) {
+    rnd_seed_ = experiment_id_ % 1000;
+  }
+  RCLCPP_INFO(this->get_logger(), "Random seed: %d", rnd_seed_);
+
+  // Set random seed
+  rng_.seed(rnd_seed_);
 
   pub_tasks_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
       "tasks_markers", 100);
@@ -26,7 +36,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node") {
   tasks_ = map_->getTasksFromGridMap();
   RCLCPP_INFO(this->get_logger(), "Found %ld tasks", tasks_.size());
   RCLCPP_INFO(this->get_logger(), "Running PRM");
-  path_planner_ = std::make_shared<PRM>(*map_, tasks_, step_size_, 5.0f);
+  path_planner_ = std::make_shared<PRM>(*map_, tasks_, step_size_, 5.0f, rng_);
 
   VRPSolver solver;
   std::vector<std::vector<int64_t>> distance_matrix;
@@ -56,6 +66,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node") {
     solver.distanceFromPaths(paths, *path_planner_, distance_matrix);
   }
 
+  // Create a unique
   RCLCPP_INFO(this->get_logger(), "Running EXP: homVRP");
   solveVRP(solver, distance_matrix, paths, false, true);
   RCLCPP_INFO(this->get_logger(), "Running EXP: hetVRP");
@@ -113,15 +124,13 @@ void MRVRPNode::readROSParameters() {
   this->declare_parameter("min_max_solver", "");
 
   this->declare_parameter("solver_seconds", 30);
-  // TODO: Parameters for configuring traversability and safety costs are
-  // currently hardcoded in the base_planner.hpp for brevity
+  this->declare_parameter("fixed_random_seed", true);
 
   std::vector<double> temp;
   this->get_parameter("num_vehicles", num_vehicles_);
   this->get_parameter("velocities", temp);
   velocities_ = std::vector<float>(temp.begin(), temp.end());
-  std::vector<std::string> agent_types_str;
-  this->get_parameter("agent_types", agent_types_str);
+  this->get_parameter("agent_types", agent_types_str_);
 
   this->get_parameter("step_size", step_size_);
 
@@ -135,8 +144,9 @@ void MRVRPNode::readROSParameters() {
   this->get_parameter("gamma_collision", gamma_collision_);
   this->get_parameter("d_05_collision", d_05_collision_);
   this->get_parameter("solver_seconds", solver_seconds_);
+  this->get_parameter("fixed_random_seed", fixed_random_seed_);
 
-  for (auto s : agent_types_str) {
+  for (auto s : agent_types_str_) {
     agent_types_.push_back(stringToAgentType(s));
   }
   RCLCPP_INFO(this->get_logger(),
@@ -410,13 +420,15 @@ void MRVRPNode::solveVRP(
 
   // OUT Store ResultsEx
   ResultExp result;
+  result.exp_id = experiment_id_;
   result.method = "maxSpan_" + method_str;
   result.map = map_name_;
-  result.rnd_seed = 42;  // TODO: Fix
+  result.rnd_seed = rnd_seed_;
   result.route_total_cost.resize(num_vehicles_);
   result.route_cost_distance.resize(num_vehicles_);
   result.route_cost_time.resize(num_vehicles_);
   result.route_cost_traversability.resize(num_vehicles_);
+  result.route_cost_collision.resize(num_vehicles_);
   result.route_cost_safety.resize(num_vehicles_);
   for (int k = 0; k < num_vehicles_; ++k) {
     result.route_total_cost[k] = resulting_route_cost[k];
@@ -426,43 +438,15 @@ void MRVRPNode::solveVRP(
         path_planner_->computeTraversabilityCost(
             *map_, path_[k], agent_types_[k], lambda_good_trav_,
             lambda_bad_trav_);
-    result.route_cost_safety[k] = path_planner_->computeCollisionCost(
+    result.route_cost_collision[k] = path_planner_->computeCollisionCost(
         *map_, path_[k], agent_types_[k], gamma_collision_, d_05_collision_);
+    result.route_cost_safety[k] = path_planner_->computeSafetyCost(
+        *map_, path_[k], agent_types_[k], lambda_good_trav_, lambda_bad_trav_,
+        gamma_collision_, d_05_collision_);
   }
 
   // Save results as a CSV file
-  // Check if it exists
-  std::string results_filename = results_path_ + "exp/" + map_name_ + ".csv";
-  // Create folders if they don't exist
-  std::filesystem::create_directories(results_path_ + "exp/");
-  std::cout << "Finished exp, writing results to " << results_filename
-            << std::endl;
-  bool file_exists = std::filesystem::exists(results_filename);
-  std::ofstream csv_file;
-  if (!file_exists) {
-    csv_file = std::ofstream(results_filename, std::ios_base::out);
-    csv_file << "map,method,rnd_seed";
-    for (int k = 0; k < num_vehicles_; ++k) {
-      csv_file << ",total_cost" << k + 1;
-      csv_file << ",distance_agent" << k + 1;
-      csv_file << ",time_agent" << k + 1;
-      csv_file << ",traversability_agent" << k + 1;
-      csv_file << ",safety_agent" << k + 1;
-    }
-    csv_file << "\n";
-  } else {
-    csv_file = std::ofstream(results_filename, std::ios_base::app);
-  }
-  csv_file << result.map << "," << result.method << "," << result.rnd_seed;
-  for (int k = 0; k < num_vehicles_; ++k) {
-    csv_file << "," << result.route_total_cost[k];
-    csv_file << "," << result.route_cost_distance[k];
-    csv_file << "," << result.route_cost_time[k];
-    csv_file << "," << result.route_cost_traversability[k];
-    csv_file << "," << result.route_cost_safety[k];
-  }
-  csv_file << "\n";
-  csv_file.close();
+  logResultsCSV(result);
 
   std::cout << "Finished exp, writing paths" << std::endl;
 
@@ -518,6 +502,62 @@ void MRVRPNode::solveVRP(
 
     pub_vrp_sol_->publish(msg);
   }
+}
+
+void MRVRPNode::logResultsCSV(const ResultExp &result) const {
+  // Prepare CSV path
+  std::string folder = results_path_ + "exp/";
+  std::filesystem::create_directories(folder);
+  std::string filename = folder + map_name_ + ".csv";
+
+  // Header in long format
+  std::vector<std::string> header = {"exp_id",
+                                     "method",
+                                     "map",
+                                     "rnd_seed",
+                                     "agent_id",
+                                     "agent_type",
+                                     "velocity",
+                                     "total_cost",
+                                     "distance",
+                                     "time",
+                                     "traversability",
+                                     "collision",
+                                     "safety",
+                                     "step_size",
+                                     "cost_scaling",
+                                     "lambda_good_trav",
+                                     "lambda_bad_trav",
+                                     "gamma_collision",
+                                     "d_05_collision",
+                                     "solver_seconds"};
+
+  // Initialize writer (will only write header if file does not exist)
+  CSVWriter writer(filename, header);
+
+  // Loop over agents
+  for (int k = 0; k < num_vehicles_; ++k) {
+    writer.writeRow(
+        // --- Experiment metadata ---
+        result.exp_id, result.map, result.method, result.rnd_seed,
+
+        // --- Agent info ---
+        k + 1, // agent_id
+        agent_types_str_[k],
+        velocities_[k],
+
+        // --- Performance metrics ---
+        result.route_total_cost[k], result.route_cost_distance[k],
+        result.route_cost_time[k], result.route_cost_traversability[k],
+        result.route_cost_safety[k],
+
+        // --- Solver parameters ---
+        step_size_, cost_scaling_, lambda_good_trav_, lambda_bad_trav_,
+        gamma_collision_, d_05_collision_, solver_seconds_);
+  }
+
+  RCLCPP_INFO(this->get_logger(), "Logged results for experiment %ld to %s",
+              result.exp_id, filename.c_str());
 }
 
 int main(int argc, char *argv[]) {

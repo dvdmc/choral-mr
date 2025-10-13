@@ -43,12 +43,9 @@ std::vector<float> RRTStar::informedRandomSample_(std::vector<float> start,
   std::uniform_real_distribution<float> x_dist(min_x, max_x);
   std::uniform_real_distribution<float> y_dist(min_y, max_y);
 
-  // Random generator
-  std::random_device rd;
-  std::mt19937 gen(rd());
 
-  float x = x_dist(gen);
-  float y = y_dist(gen);
+  float x = x_dist(rng_);
+  float y = y_dist(rng_);
 
   // Ensure the sampled point is valid on the map
   int counter = 1;
@@ -72,8 +69,8 @@ std::vector<float> RRTStar::informedRandomSample_(std::vector<float> start,
       y_dist = std::uniform_real_distribution<float>(min_y, max_y);
     }
 
-    x = x_dist(gen);
-    y = y_dist(gen);
+    x = x_dist(rng_);
+    y = y_dist(rng_);
     counter++;
   }
 
@@ -113,7 +110,6 @@ std::vector<std::vector<float>> RRTStar::searchPath(std::vector<float> start,
                                                     std::vector<float> goal,
                                                     float dist_th) const {
   std::vector<RRTNode::Ptr> tree;
-  std::mt19937 rng(std::random_device{}());
 
   RRTNode::Ptr start_node =
       std::make_shared<RRTNode>(start[0], start[1], 0, nullptr);
@@ -136,7 +132,7 @@ std::vector<std::vector<float>> RRTStar::searchPath(std::vector<float> start,
 
   for (int i = 0; i < max_samples_; ++i) {
     std::vector<float> random_point =
-        informedRandomSample_(start, goal, 0.01 * i, rng);
+        informedRandomSample_(start, goal, 0.01 * i, rng_);
 
     // Get nearest node in the tree
     RRTNode::Ptr nearest_node = getNearestNode_(tree, random_point);
@@ -222,7 +218,6 @@ std::vector<std::vector<float>> RRTStar::searchPathMultiGoal(
     std::vector<float> start, std::vector<std::vector<float>> goals,
     float dist_th) const {
   std::vector<RRTNode::Ptr> tree;
-  std::mt19937 rng(std::random_device{}());
 
   RRTNode::Ptr start_node =
       std::make_shared<RRTNode>(start[0], start[1], 0, nullptr);
@@ -236,7 +231,8 @@ std::vector<std::vector<float>> RRTStar::searchPathMultiGoal(
     if (isVisible(start[0], start[1], goal[0], goal[1])) {
       RRTNode::Ptr goal_node = std::make_shared<RRTNode>(
           goal[0], goal[1],
-          start_node->g + euclideanDistance({start_node->x, start_node->y}, goal),
+          start_node->g +
+              euclideanDistance({start_node->x, start_node->y}, goal),
           start_node);
       tree.push_back(goal_node);
       std::vector<std::vector<float>> path = reconstructPath_(goal_node);
@@ -246,7 +242,7 @@ std::vector<std::vector<float>> RRTStar::searchPathMultiGoal(
   }
 
   for (int i = 0; i < max_samples_; ++i) {
-    std::vector<float> random_point = randomSample_(rng);
+    std::vector<float> random_point = randomSample_(rng_);
 
     // Get nearest node in the tree
     RRTNode::Ptr nearest_node = getNearestNode_(tree, random_point);
@@ -298,7 +294,8 @@ std::vector<std::vector<float>> RRTStar::searchPathMultiGoal(
           RRTNode::Ptr goal_node = std::make_shared<RRTNode>(
               goal[0], goal[1],
               best_goal_node->g +
-                  euclideanDistance({best_goal_node->x, best_goal_node->y}, goal),
+                  euclideanDistance({best_goal_node->x, best_goal_node->y},
+                                    goal),
               best_goal_node);
           tree.push_back(goal_node);
           std::vector<std::vector<float>> path = reconstructPath_(goal_node);
@@ -315,7 +312,8 @@ std::vector<std::vector<float>> RRTStar::searchPathMultiGoal(
     std::vector<float> best_goal;
     float min_dist = std::numeric_limits<float>::max();
     for (auto goal : goals) {
-      float dist = euclideanDistance({best_goal_node->x, best_goal_node->y}, goal);
+      float dist =
+          euclideanDistance({best_goal_node->x, best_goal_node->y}, goal);
       if (dist < min_dist) {
         min_dist = dist;
         best_goal = goal;

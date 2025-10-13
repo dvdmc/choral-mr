@@ -55,10 +55,9 @@ void PRM::computeNeighbors_(BaseGraph& graph, bool only_add, int k) {
 
 BaseGraph PRM::buildGraphFromMap_(GridMap const& map, int max_samples) {
   // Sample in the map
-  std::mt19937 rng;
   std::vector<std::vector<float>> positions;
   for (int i = 0; i < max_samples; i++) {
-    positions.push_back(randomSample_(map, rng));
+    positions.push_back(randomSample_(map, rng_));
   }
 
   // Build the graph
@@ -117,7 +116,7 @@ BaseGraph PRM::buildGraphFromTasks_(
   std::cout << "Found " << connected.size() << " components." << std::endl;
 
   /////////// CONNECT DISCONNECTED COMPONENTS
-  RRTStar rrt(map, step_size_, 10000, 5.0f);
+  RRTStar rrt(map, step_size_, 10000, 5.0f, rng_);
   auto start3 = std::chrono::high_resolution_clock::now();
 
   if (connected.size() > 1) {

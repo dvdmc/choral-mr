@@ -7,7 +7,6 @@
 
 class BasePlanner {
  public:
-
   virtual std::vector<std::vector<float>> searchPath(std::vector<float> start,
                                                      std::vector<float> goal,
                                                      float dist_th) const = 0;
@@ -35,89 +34,130 @@ class BasePlanner {
       }
       return distance;
     } else {
+      // Path not found. Return -1
       return -1;
     }
   };
 
-  float computeTraversabilityCost(GridMap const& map,
-                                  std::vector<std::vector<float>> path,
-                                  AgentType agent_type, float lambda_good_trav, float lambda_bad_trav) const {
-    
-    if(agent_type == AgentType::AERIAL) {return 0.0;} // Aerial is not affected by trav.
+  float computeTraversabilityCost(const GridMap& map,
+                                  const std::vector<std::vector<float>>& path,
+                                  AgentType agent_type, float lambda_good_trav,
+                                  float lambda_bad_trav) const {
+    if (path.empty()) return -1.0f;
+    if (agent_type == AgentType::AERIAL)
+    {
+      return 0.0f;  // Aerial unaffected by traversability
+    }
 
-    // Check traversability along the whole path
-    float total_accident_rate = 0.0;
-    float dist_interv = map.resolution;
+    float total_accident_rate = 0.0f;
+    const float dist_interv = map.resolution;
 
-    for (int i = 1; i < path.size(); i++) {
-      float dist_along_path = 0.0;
+    for (size_t i = 1; i < path.size(); ++i) {
       float dx = path[i][0] - path[i - 1][0];
       float dy = path[i][1] - path[i - 1][1];
-      float total_dist = sqrt(dx * dx + dy * dy);
-      while (dist_along_path < total_dist) {
-        float x = path[i - 1][0] + dist_along_path * dx / total_dist;
-        float y = path[i - 1][1] + dist_along_path * dy / total_dist;
+      float total_dist = std::sqrt(dx * dx + dy * dy);
 
-        // Get traversability and add the corresponding accident rate
-        if (map.getTraversability(x, y, agent_type) == 0) {
-          total_accident_rate += lambda_bad_trav * dist_interv;
-        } else {
-          total_accident_rate += lambda_good_trav * dist_interv;
-        }
-        dist_along_path += dist_interv;
+      for (float s = 0.0f; s < total_dist; s += dist_interv) {
+        float x = path[i - 1][0] + s * dx / total_dist;
+        float y = path[i - 1][1] + s * dy / total_dist;
+
+        float lambda = (map.getTraversability(x, y, agent_type) == 0)
+                           ? lambda_bad_trav
+                           : lambda_good_trav;
+
+        total_accident_rate += lambda * dist_interv;
       }
     }
 
-    // Calculate the survival function S(pi) = exp(-total_accident_rate)
-    float survival_prob = exp(-total_accident_rate);
-
-    // Return the heterogeneous cost: 1 - S(pi)
-    return 1 - survival_prob;
+    float survival_prob = std::exp(-total_accident_rate);
+    return 1.0f - survival_prob;
   }
 
   float computeCollisionRate(float dist, float gamma, float d_05) const {
-    // This function implements the logistic function for the accident rate
+    // Logistic function for collision rate
     return 1.0f / (1.0f + exp(gamma * (dist - d_05)));
   }
 
-  float computeCollisionCost(GridMap const& map,
-                          std::vector<std::vector<float>> path,
-                          AgentType agent_type, float gamma, float d_05) const {
+  float computeCollisionCost(const GridMap& map,
+                             const std::vector<std::vector<float>>& path,
+                             AgentType agent_type, float gamma,
+                             float d_05) const {
+    if (path.empty()) return -1.0f;
+    if (agent_type != AgentType::AERIAL)
+    {
+      return 0.0f;  // Ground unaffected by collision
+    }
 
-    if (agent_type != AgentType::AERIAL) {return 0.0f;} // Ground is not affected by collision
+    float total_accident_rate = 0.0f;
+    const float dist_interv = map.resolution;
 
-    // Total accident rate integrated over the path
+    for (size_t i = 1; i < path.size(); ++i) {
+      float dx = path[i][0] - path[i - 1][0];
+      float dy = path[i][1] - path[i - 1][1];
+      float total_dist = std::sqrt(dx * dx + dy * dy);
+
+      for (float s = 0.0f; s < total_dist; s += dist_interv) {
+        float x = path[i - 1][0] + s * dx / total_dist;
+        float y = path[i - 1][1] + s * dy / total_dist;
+
+        float dist_to_obstacle = map.getDistance(x, y);
+        float lambda = computeCollisionRate(dist_to_obstacle, gamma, d_05);
+        total_accident_rate += lambda * dist_interv;
+      }
+    }
+
+    float survival_prob = std::exp(-total_accident_rate);
+    return 1.0f - survival_prob;
+  }
+
+  float computeSafetyCost(const GridMap& map,
+                          const std::vector<std::vector<float>>& path,
+                          AgentType agent_type, float lambda_good_trav,
+                          float lambda_bad_trav, float gamma,
+                          float d_05) const {
+    // Return 0 if no path or trivial path
+    if (path.empty()) return -1.0f;
+
     float total_accident_rate = 0.0f;
     float dist_interv = map.resolution;
 
-    for (int i = 1; i < path.size(); i++) {
-      float dist_along_path = 0.0;
+    for (int i = 1; i < path.size(); ++i) {
       float dx = path[i][0] - path[i - 1][0];
       float dy = path[i][1] - path[i - 1][1];
       float total_dist = sqrt(dx * dx + dy * dy);
+      float dist_along_path = 0.0f;
+
       while (dist_along_path < total_dist) {
         float x = path[i - 1][0] + dist_along_path * dx / total_dist;
         float y = path[i - 1][1] + dist_along_path * dy / total_dist;
 
-        // Get the distance to the nearest obstacle from the Euclidean Distance
-        // Field (EDF)
-        float dist_to_obstacle = map.getDistance(x, y);
+        float local_rate = 0.0f;
 
-        // Calculate the accident rate using the logistic function
-        float lambda_safe = computeCollisionRate(dist_to_obstacle, gamma, d_05);
+        // Traversability-related accident rate (for ground agents)
+        if (agent_type != AgentType::AERIAL) {
+          if (map.getTraversability(x, y, agent_type) == 0) {
+            local_rate += lambda_bad_trav;
+          } else {
+            local_rate += lambda_good_trav;
+          }
+        }
 
-        // Add the rate times the distance interval to the total
-        total_accident_rate += lambda_safe * dist_interv;
+        // Collision-related accident rate (for aerial agents)
+        if (agent_type == AgentType::AERIAL) {
+          float dist_to_obstacle = map.getDistance(x, y);
+          local_rate += computeCollisionRate(dist_to_obstacle, gamma, d_05);
+        }
 
+        total_accident_rate += local_rate * dist_interv;
         dist_along_path += dist_interv;
       }
     }
 
-    // Calculate the survival probability S(pi) = exp(-total_accident_rate)
+    // Poisson survival probability: S(pi) = exp(-sum(local_rate * dist_interv))
     float survival_prob = exp(-total_accident_rate);
 
-    // Return the safety cost: 1 - S(pi)
-    return 1 - survival_prob;
+    // Safety cost: 1 - S(pi)
+    return 1.0f - survival_prob;
   }
 
   std::vector<std::vector<float>> simplifyPath(

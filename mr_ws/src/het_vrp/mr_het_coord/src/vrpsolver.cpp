@@ -32,15 +32,13 @@ void VRPSolver::distanceFromPathPlanner(
         continue;
       }
 
+      // NOTE: Can return an empty path, resulting in -1 distance
       paths[i][j] = path_planner.searchPath(position1, position2, 0.2f);
       paths[j][i] = path_planner.invertPath(paths[i][j]);
 
       float path_dist = path_planner.computeDistance(paths[i][j]);
       if (path_dist == -1) {
-        float d_x = position1[0] - position2[0];
-        float d_y = position1[1] - position2[1];
-        path_dist = std::sqrt(d_x * d_x + d_y * d_y);
-        path_dist = int64_t(path_dist * DISTANCE_SCALING + IMPOSIBLE_COST);
+        path_dist = int64_t(IMPOSIBLE_COST);
       }
       distance_matrix[i][j] = int(path_dist * DISTANCE_SCALING);
       distance_matrix[j][i] = distance_matrix[i][j];
@@ -49,7 +47,7 @@ void VRPSolver::distanceFromPathPlanner(
   auto end = std::chrono::high_resolution_clock::now();
   auto duration =
       std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "################# Time taken on computing distances: "
+  std::cout << "############## Time taken on computing distances: "
             << duration.count() << " ms" << std::endl;
   makeAsymmetric_(distance_matrix);
 }
@@ -94,6 +92,16 @@ void VRPSolver::uniformCostMatrices(
       num_vehicles, std::vector<std::vector<int64_t>>(
                         distance_matrix.size(),
                         std::vector<int64_t>(distance_matrix.size(), 0)));
+  // Consider untraversable paths
+  for (size_t i = 0; i < distance_matrix.size(); ++i) {
+    for (size_t j = 0; j < distance_matrix.size(); ++j) {
+      if (distance_matrix[i][j] >= IMPOSIBLE_COST * DISTANCE_SCALING) {
+        for (size_t k = 0; k < num_vehicles; ++k) {
+          cost_matrices[k][i][j] = IMPOSIBLE_COST * DISTANCE_SCALING;
+        }
+      }
+    }
+  }
   makeAsymmetric_(cost_matrices);
 }
 
@@ -105,6 +113,8 @@ void VRPSolver::hetPlatformCostMatrices(
     float lambda_good_trav, float lambda_bad_trav, float gamma_collision,
     float d_05_collision) const {
   auto start = std::chrono::high_resolution_clock::now();
+
+  // We use the paths as the distance matrix
   cost_matrices = std::vector<std::vector<std::vector<int64_t>>>(
       num_vehicles,
       std::vector<std::vector<int64_t>>(
@@ -119,29 +129,31 @@ void VRPSolver::hetPlatformCostMatrices(
   {
     for (size_t j = 0; j < i; ++j)  // V is the number of nodes
     {
-      float trav_cost = path_planner.computeTraversabilityCost(
-                            grid_map, paths[i][j], AgentType::AERIAL,
-                            lambda_good_trav, lambda_bad_trav) *
-                        DISTANCE_SCALING;
-      float collision_cost = path_planner.computeCollisionCost(
-                                 grid_map, paths[i][j], AgentType::AERIAL,
-                                 gamma_collision, d_05_collision) *
-                             DISTANCE_SCALING;
+      // Consider untraversable paths
+      if(paths[i][j].empty()) {
+        aerial_cost_matrix[i][j] = IMPOSIBLE_COST * DISTANCE_SCALING;
+        aerial_cost_matrix[j][i] = IMPOSIBLE_COST * DISTANCE_SCALING;
+        ground_cost_matrix[i][j] = IMPOSIBLE_COST * DISTANCE_SCALING;
+        ground_cost_matrix[j][i] = IMPOSIBLE_COST * DISTANCE_SCALING;
+        continue;
+      }
 
-      aerial_cost_matrix[i][j] = trav_cost + collision_cost;
+      float aerial_safety_cost = path_planner.computeSafetyCost(
+                            grid_map, paths[i][j], AgentType::AERIAL,
+                            lambda_good_trav, lambda_bad_trav,
+                            gamma_collision, d_05_collision) *
+                        DISTANCE_SCALING;
+
+      aerial_cost_matrix[i][j] = aerial_safety_cost;
       aerial_cost_matrix[j][i] = aerial_cost_matrix[i][j];
 
-      float ground_trav_cost = path_planner.computeTraversabilityCost(
+      float ground_safety_cost = path_planner.computeSafetyCost(
                                    grid_map, paths[i][j], AgentType::GROUND,
-                                   lambda_good_trav, lambda_bad_trav) *
+                                   lambda_good_trav, lambda_bad_trav,
+                                   gamma_collision, d_05_collision) *
                                DISTANCE_SCALING;
-      float ground_collision_cost =
-          path_planner.computeCollisionCost(grid_map, paths[i][j],
-                                            AgentType::GROUND, gamma_collision,
-                                            d_05_collision) *
-          DISTANCE_SCALING;
-      ground_cost_matrix[i][j] =
-          ground_trav_cost + ground_collision_cost;  // TODO: FIX!!
+
+      ground_cost_matrix[i][j] = ground_safety_cost;
       ground_cost_matrix[j][i] = ground_cost_matrix[i][j];
     }
   }

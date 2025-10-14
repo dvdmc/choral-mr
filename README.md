@@ -69,8 +69,7 @@ export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PAT
 
 #### Nvidia Container Toolkit
 
-Finally, install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian) to enable the use of GPU inside Docker.
-Remember to validate the installation by importing Pytorch and checking the compute capabilities with `print(torch.cuda.is_available())`.
+Finally, install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian) to enable the use of GPU inside Docker. Remember to validate the installation by importing Pytorch and checking the compute capabilities with `print(torch.cuda.is_available())` within some virtual environment where torch is installed (see Ground Station if required).
 
 ## Running demo
 
@@ -82,7 +81,7 @@ docker compose up -d
 docker exec -it mr_system /bin/bash
 ```
 
-Once you are inside the Docker, move to the `TODO` folder and run:
+Once you are inside the Docker, run:
 ```bash
 cd mr_ws
 colcon build --symlink-install
@@ -100,7 +99,26 @@ The real robot deployment highly depends on the specific lab setup and configura
 
 ### Ground Station
 
-The ground station will run the positioning system for the motion capture system. This should be replaced by individual robot positioning systems in other scenarios. For the motion capture system, adjust the `config/ground_station/mocap4r2_optitrack.yaml` file to set the correct IPs for connecting to the Optitrack system. The ground station also runs semantic segmentation inference on images received from the Surveyor drone. Configure the open-vocabulary terms to detect in `src/sensors_tools/sensors_tools_ros/cfg/sensor_rs_open_trident.yaml`. 
+The ground station will run the positioning system for the motion capture system. This should be replaced by individual robot positioning systems in other scenarios. For the motion capture system, adjust the `config/ground_station/mocap4r2_optitrack.yaml` file to set the correct IPs for connecting to the Optitrack system. The ground station also runs semantic segmentation inference on images received from the Surveyor drone. Configure the open-vocabulary terms to detect in `src/sensors_tools/sensors_tools_ros/cfg/sensor_rs_open_trident.yaml`. Aside from building the main source code, you will have to create a virtual environment and install the `sensors_tools` package. Inside the docker, move to `mr_ws` and do:
+
+```bash
+python3 -m venv .env-sem
+pip install torch torchvision torchaudio # Make sure the CUDA version is installed
+source .env-sem/bin/activate
+cd src/sensors_tools
+pip install -e .
+```
+
+Now, make sure to being sourced in the venv and rebuild the ws:
+
+```bash
+source .env-sem/bin/activate
+pip install rospkg
+pip install -U colcon-common-extensions
+python3 -m colcon build --symlink-install
+```
+
+NOTE: the last step is a [known issue](https://github.com/ros2/ros2/issues/1094#issuecomment-2897480048) in colcon & ROS 2 when running venvs and we hope to solve it in the future.
 
 ### Tello
 

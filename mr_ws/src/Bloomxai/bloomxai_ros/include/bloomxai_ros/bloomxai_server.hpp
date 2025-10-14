@@ -65,9 +65,8 @@ namespace bloomxai_server {
     rclcpp::Publisher<PointCloud2>::SharedPtr point_cloud_pub_;
     rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
     rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr grid_map_pub_;
-
-    message_filters::Subscriber<PointCloud2> point_cloud_sub_;
-    std::shared_ptr<tf2_ros::MessageFilter<PointCloud2>> tf_point_cloud_sub_;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_sub_;
+    
     // rclcpp::Service<BBoxSrv>::SharedPtr clear_bbox_srv_;
     rclcpp::Service<ResetSrv>::SharedPtr reset_srv_;
     std::shared_ptr<tf2_ros::Buffer> tf2_buffer_;
@@ -99,7 +98,7 @@ namespace bloomxai_server {
     std::unique_ptr<BloomxaiT> bloomxai_;
     std::vector<Bonxai::CoordT> key_ray_;
   
-    double max_range_;
+    double max_range_, min_range_;
     std::string world_frame_id_;  // the map frame
     std::string base_frame_id_;   // base of the robot for ground plane filtering
   

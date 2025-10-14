@@ -6,6 +6,7 @@ from typing import Tuple
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+from rclpy.qos import qos_profile_sensor_data
 from rclpy.node import Node
 from cv_bridge import CvBridge, CvBridgeError
 from tf2_ros import TransformBroadcaster
@@ -66,35 +67,35 @@ class SemanticNode(Node):
         if "pose" in self.data_types:
             self.tf_broadcaster = TransformBroadcaster(self)
             self.pub_camera_odometry = self.create_publisher(
-                Odometry, f"/{self.camera_name}/odom", 10
+                Odometry, f"/{self.camera_name}/odom", qos_profile_sensor_data
             )
             # self.pose_timer = self.create_timer(0.001, self.update_and_publish_odom)
 
         if "rgb" in self.data_types:
             self.pub_rgb = self.create_publisher(
-                ImageMsg, f"/{self.camera_name}/rgb/image_raw", 10
+                ImageMsg, f"/{self.camera_name}/rgb/image_raw", qos_profile_sensor_data
             )
 
         if "depth" in self.data_types:
             self.pub_depth = self.create_publisher(
-                ImageMsg, f"/{self.camera_name}/depth/image_raw", 10
+                ImageMsg, f"/{self.camera_name}/depth/image_raw", qos_profile_sensor_data
             )
             self.pub_point_cloud = self.create_publisher(
-                PointCloud2, f"/{self.camera_name}/point_cloud", 10
+                PointCloud2, f"/{self.camera_name}/point_cloud", qos_profile_sensor_data
             )
             if self.publish_freespace_point_cloud:
                 self.pub_freespace_point_cloud = self.create_publisher(
-                    PointCloud2, f"/{self.camera_name}/freespace_point_cloud", 10
+                    PointCloud2, f"/{self.camera_name}/freespace_point_cloud", qos_profile_sensor_data
                 )
         if "semantic" in self.data_types:
             assert self.cfg.inference_cfg is not None, (
                 "Inference cfg must be specified if semantic data is requested"
             )
             self.pub_semantic_gt = self.create_publisher(
-                ImageMsg, f"/{self.camera_name}/semantic_gt/image_raw", 10
+                ImageMsg, f"/{self.camera_name}/semantic_gt/image_raw", qos_profile_sensor_data
             )
             self.pub_semantic = self.create_publisher(
-                ImageMsg, f"/{self.camera_name}/semantic/image_raw", 10
+                ImageMsg, f"/{self.camera_name}/semantic/image_raw", qos_profile_sensor_data
             )
 
         if self.frequency == -1:

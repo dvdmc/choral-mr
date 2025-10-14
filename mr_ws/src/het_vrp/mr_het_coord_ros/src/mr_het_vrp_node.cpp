@@ -72,6 +72,9 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
   RCLCPP_INFO(this->get_logger(), "Running EXP: hetVRP");
   solveVRP(solver, distance_matrix, paths, true, true);
   RCLCPP_INFO(this->get_logger(), "Finished experiments");
+
+  // Uncomment below for batched experiments
+  rclcpp::shutdown();
 }
 MRVRPNode::~MRVRPNode() {}
 
@@ -506,9 +509,9 @@ void MRVRPNode::solveVRP(
 
 void MRVRPNode::logResultsCSV(const ResultExp &result) const {
   // Prepare CSV path
-  std::string folder = results_path_ + "exp/";
+  std::string folder = results_path_;
   std::filesystem::create_directories(folder);
-  std::string filename = folder + map_name_ + ".csv";
+  std::string filename = folder + "results.csv";
 
   // Header in long format
   std::vector<std::string> header = {"exp_id",
@@ -539,7 +542,7 @@ void MRVRPNode::logResultsCSV(const ResultExp &result) const {
   for (int k = 0; k < num_vehicles_; ++k) {
     writer.writeRow(
         // --- Experiment metadata ---
-        result.exp_id, result.map, result.method, result.rnd_seed,
+        result.exp_id, result.method, result.map, result.rnd_seed,
 
         // --- Agent info ---
         k + 1, // agent_id
@@ -549,7 +552,7 @@ void MRVRPNode::logResultsCSV(const ResultExp &result) const {
         // --- Performance metrics ---
         result.route_total_cost[k], result.route_cost_distance[k],
         result.route_cost_time[k], result.route_cost_traversability[k],
-        result.route_cost_safety[k],
+        result.route_cost_collision[k], result.route_cost_safety[k],
 
         // --- Solver parameters ---
         step_size_, cost_scaling_, lambda_good_trav_, lambda_bad_trav_,

@@ -9,7 +9,7 @@
     </node> -->
 
     <!-- VRP Node -->
-    <node name="mr_het_vrp_node" pkg="mr_het_coord_ros" exec="mr_het_vrp_node" output="screen">
+    <node name="mr_het_vrp_node" pkg="mr_het_coord_ros" exec="mr_het_vrp_node" output="screen" on_exit="shutdown">
         <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_$(var map).yml"/>
         <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_$(var num_agents)agents.yml"/>
         <remap from="/grid_map_in" to="/grid_map_out"/>

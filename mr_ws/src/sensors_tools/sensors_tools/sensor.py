@@ -105,6 +105,7 @@ class SemanticSegmentationSensor:
             start = time.time()
             semantics = self.inference_model.infer(img)
             print(f"Time to get prediction: {time.time() - start}")
+            print(f"Sanity check values: {semantics.max()} - {semantics.min()}")
 
             # NOTE: This is now handled by the bridge
             # if self.gt_labels_mapper is not None and "semantic_gt" in data:

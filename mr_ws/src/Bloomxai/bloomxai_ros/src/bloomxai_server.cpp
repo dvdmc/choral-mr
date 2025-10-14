@@ -53,13 +53,18 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   }
 
   {
-    rcl_interfaces::msg::ParameterDescriptor max_range_desc;
+    rcl_interfaces::msg::ParameterDescriptor max_range_desc, min_range_desc;
     max_range_desc.description = "Sensor maximum range";
-    rcl_interfaces::msg::FloatingPointRange max_range_range;
+    min_range_desc.description = "Sensor minimum range";
+    rcl_interfaces::msg::FloatingPointRange max_range_range, min_range_range;
     max_range_range.from_value = -1.0;
     max_range_range.to_value = 100.0;
+    min_range_range.from_value = -1.0;
+    min_range_range.to_value = 10.0;
     max_range_desc.floating_point_range.push_back(max_range_range);
+    min_range_desc.floating_point_range.push_back(min_range_range);
     max_range_ = declare_parameter("sensor_model.max_range", -1.0, max_range_desc);
+    min_range_ = declare_parameter("sensor_model.min_range", -1.0, min_range_desc);
   }
 
   {
@@ -116,6 +121,7 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   // Dump config
   RCLCPP_INFO(get_logger(), "occupancy_min_z %f", occupancy_min_z_);
   RCLCPP_INFO(get_logger(), "occupancy_max_z %f", occupancy_max_z_);
+  RCLCPP_INFO(get_logger(), "min_range %f", min_range_);
   RCLCPP_INFO(get_logger(), "max_range %f", max_range_);
   RCLCPP_INFO(get_logger(), "sem_dim %d", sem_dim_);
   RCLCPP_INFO(get_logger(), "initial_sem_val %f", initial_sem_val_);
@@ -159,13 +165,13 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
   using std::chrono_literals::operator""s;
-  point_cloud_sub_.subscribe(this, "cloud_in", rmw_qos_profile_default);
-  tf_point_cloud_sub_ = std::make_shared<tf2_ros::MessageFilter<PointCloud2>>(
-      point_cloud_sub_, *tf2_buffer_, world_frame_id_, 5, this->get_node_logging_interface(),
-      this->get_node_clock_interface(), 5s);
-
-  tf_point_cloud_sub_->registerCallback(&BloomxaiServer::insertCloudCallback, this);
-
+  
+  point_cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+    "cloud_in",
+    rclcpp::SensorDataQoS(),
+    std::bind(&BloomxaiServer::insertCloudCallback, this, std::placeholders::_1)
+  );
+  
   save_srv_ = create_service<bloomxai_ros::srv::SaveMap>(
       "~/save_map",
       std::bind(
@@ -381,6 +387,17 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
 
   RCLCPP_INFO(get_logger(), "Received cloud with %d points", cloud->width * cloud->height);
 
+  // Sensor In Global Frames Coordinates
+  geometry_msgs::msg::TransformStamped sensor_to_world_transform_stamped;
+  try {
+    sensor_to_world_transform_stamped = tf2_buffer_->lookupTransform(
+        world_frame_id_, cloud->header.frame_id, cloud->header.stamp,
+        rclcpp::Duration::from_seconds(5.0));
+  } catch (const tf2::TransformException& ex) {
+    RCLCPP_WARN(this->get_logger(), "%s", ex.what());
+    return;
+  }
+
   PCLPointCloud pc;  // input cloud for filtering and ground-detection
   std::vector<Bloomxai::SemanticMap::VSemanticProb> semantics;
 
@@ -406,7 +423,7 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
     p.z = *iter_z;
 
     if (!std::isfinite(p.x) || !std::isfinite(p.y) || !std::isfinite(p.z) ||
-        (p.x == 0.0 && p.y == 0.0 && p.z == 0.0)) {
+        (p.x == 0.0 && p.y == 0.0 && p.z == 0.0) || p.x < min_range_) {
       continue;
     }
 
@@ -452,16 +469,6 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
   RCLCPP_INFO(get_logger(), "Filtered cloud has %lu points", pc.points.size());
   RCLCPP_INFO(
       get_logger(), "Semantics sanity check: Max prob: %f, Min prob: %f", prob_max, prob_min);
-  // Sensor In Global Frames Coordinates
-  geometry_msgs::msg::TransformStamped sensor_to_world_transform_stamped;
-  try {
-    sensor_to_world_transform_stamped = tf2_buffer_->lookupTransform(
-        world_frame_id_, cloud->header.frame_id, cloud->header.stamp,
-        rclcpp::Duration::from_seconds(1.0));
-  } catch (const tf2::TransformException& ex) {
-    RCLCPP_WARN(this->get_logger(), "%s", ex.what());
-    return;
-  }
 
   Eigen::Matrix4f sensor_to_world =
       tf2::transformToEigen(sensor_to_world_transform_stamped.transform).matrix().cast<float>();
@@ -475,6 +482,7 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
   RCLCPP_INFO(get_logger(), "Inserting %ld points", pc.points.size());
 
   const pcl::PointXYZ sensor_to_world_vec3(t.x, t.y, t.z);
+
   {
     std::lock_guard<std::mutex> lock(bloomxai_mutex_);
 

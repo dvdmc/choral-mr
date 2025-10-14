@@ -3,3 +3,7 @@ anonymize.txt
 build/
 install/
 log/
+.venv*
+*__pycache__*
+*egg-info
+checkpoints/

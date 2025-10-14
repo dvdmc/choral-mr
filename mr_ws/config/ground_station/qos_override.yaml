@@ -1,0 +1,33 @@
+republish_rgb:
+  ros__parameters:
+    qos_overrides:
+      # RGB compressed (incoming) - control subscription QoS
+      /drone1/camera/color/image_raw/compressed:
+        subscription:
+          reliability: best_effort     # use best_effort for high-rate sensor streams over lossy links
+          history: keep_last
+          depth: 5
+
+      # RGB decompressed (outgoing) - control publisher QoS
+      /drone1/camera/color/image_raw_decompressed:
+        publisher:
+          reliability: best_effort
+          history: keep_last
+          depth: 5
+
+republish_depth:
+  ros__parameters:
+    qos_overrides:
+      # Depth compressedDepth (incoming)
+      /drone1/camera/depth/image_rect_raw/compressedDepth:
+        subscription:
+          reliability: best_effort
+          history: keep_last
+          depth: 5
+
+      # Depth decompressed (outgoing)
+      /drone1/camera/depth/image_rect_raw_decompressed:
+        publisher:
+          reliability: best_effort
+          history: keep_last
+          depth: 5

@@ -1,0 +1,31 @@
+<launch>
+  <arg name="override_file" default="$(find-pkg-share sensors_tools_ros)/cfg/qos_profile.yaml"/>
+  
+  <!-- Republish RGB compressed image to raw -->
+  <node
+    pkg="image_transport"
+    exec="republish"
+    name="republish_rgb"
+    output="screen"
+  >
+    <param from="$(var override_file)"/>
+    <param name="in_transport" value="compressed"/>
+    <param name="out_transport" value="raw"/>
+    <remap from="in/compressed" to="/drone1/camera/color/image_raw/compressed"/>
+    <remap from="out" to="/drone1/camera/color/image_raw_decompressed"/>
+  </node>
+
+  <!-- Republish Depth compressedDepth image to raw -->
+  <node
+    pkg="image_transport"
+    exec="republish"
+    name="republish_depth"
+    output="screen"
+  >
+    <param from="$(var override_file)"/>
+    <param name="in_transport" value="compressedDepth"/>
+    <param name="out_transport" value="raw"/>
+    <remap from="in/compressedDepth" to="/drone1/camera/depth/image_rect_raw/compressedDepth"/>
+    <remap from="out" to="/drone1/camera/depth/image_rect_raw_decompressed"/>
+  </node>
+</launch>

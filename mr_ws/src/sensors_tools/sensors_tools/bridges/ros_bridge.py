@@ -10,6 +10,7 @@ import tf2_ros
 import cv_bridge
 from sensor_msgs.msg import Image as RosImage
 from sensor_msgs.msg import CameraInfo
+from rclpy.qos import qos_profile_sensor_data
 import message_filters
 from scipy.ndimage import median_filter
 from PIL import Image
@@ -101,7 +102,7 @@ class ROSBridge(BaseBridge):
         # RELEVANT CAMERA DATA
         if "rgb" in self.cfg.data_types:
             self.node.create_subscription(
-                CameraInfo, self.cfg.camera_info_topic, self.camera_info_callback, 10
+                CameraInfo, self.cfg.camera_info_topic, self.camera_info_callback, qos_profile_sensor_data
             )
 
         if "depth" in self.cfg.data_types:
@@ -109,15 +110,15 @@ class ROSBridge(BaseBridge):
                 CameraInfo,
                 self.cfg.camera_info_topic,
                 self.depth_camera_info_callback,
-                10,
+                qos_profile_sensor_data,
             )
 
         if "rgb" in self.cfg.data_types and "depth" in self.cfg.data_types:
             self.rgb_sub = message_filters.Subscriber(
-                self.node, RosImage, self.cfg.rgb_topic
+                self.node, RosImage, self.cfg.rgb_topic, qos_profile=qos_profile_sensor_data
             )
             self.depth_sub = message_filters.Subscriber(
-                self.node, RosImage, self.cfg.depth_topic
+                self.node, RosImage, self.cfg.depth_topic, qos_profile=qos_profile_sensor_data
             )
             self.sync = message_filters.ApproximateTimeSynchronizer(
                 [self.rgb_sub, self.depth_sub], 10, 0.5
@@ -126,28 +127,28 @@ class ROSBridge(BaseBridge):
         else:
             if "rgb" in self.cfg.data_types:
                 self.node.create_subscription(
-                    RosImage, self.cfg.rgb_topic, self.rgb_callback, 10
+                    RosImage, self.cfg.rgb_topic, self.rgb_callback, qos_profile_sensor_data
                 )
             if "depth" in self.cfg.data_types:
                 self.node.create_subscription(
-                    RosImage, self.cfg.depth_topic, self.depth_callback, 10
+                    RosImage, self.cfg.depth_topic, self.depth_callback, qos_profile_sensor_data
                 )
 
     def check_ready(self):
         if "rgb" in self.cfg.data_types and (
             self.rgb is None or not self.has_camera_info
         ):
-            self.node.get_logger().warn("RGB data not available yet")
+            self.node.get_logger().warn(f"RGB data not available yet in {self.cfg.rgb_topic}")
             return False
 
         if "depth" in self.cfg.data_types and (
             self.depth is None or not self.has_depth_camera_info
         ):
-            self.node.get_logger().warn("Depth data not available yet")
+            self.node.get_logger().warn(f"Depth data not available yet in {self.cfg.depth_topic}")
             return False
 
         if "pose" in self.cfg.data_types and self.pose is None:
-            self.node.get_logger().warn("Pose data not available yet")
+            self.node.get_logger().warn(f"Pose data not available yet in {self.cfg.poses_tf}")
             return False
 
         self._ready = True

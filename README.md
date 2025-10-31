@@ -102,6 +102,7 @@ The real robot deployment highly depends on the specific lab setup and configura
 The ground station will run the positioning system for the motion capture system. This should be replaced by individual robot positioning systems in other scenarios. For the motion capture system, adjust the `config/ground_station/mocap4r2_optitrack.yaml` file to set the correct IPs for connecting to the Optitrack system. The ground station also runs semantic segmentation inference on images received from the Surveyor drone. Configure the open-vocabulary terms to detect in `src/sensors_tools/sensors_tools_ros/cfg/sensor_rs_open_trident.yaml`. Aside from building the main source code, you will have to create a virtual environment and install the `sensors_tools` package. Inside the docker, move to `mr_ws` and do:
 
 ```bash
+cd mr_ws
 python3 -m venv .env-sem
 pip install torch torchvision torchaudio # Make sure the CUDA version is installed
 source .env-sem/bin/activate

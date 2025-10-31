@@ -114,7 +114,7 @@ Now, make sure to being sourced in the venv and rebuild the ws:
 
 ```bash
 source .env-sem/bin/activate
-pip install rospkg
+pip install rospkg lark
 pip install -U colcon-common-extensions
 python3 -m colcon build --symlink-install
 ```

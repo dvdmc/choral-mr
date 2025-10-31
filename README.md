@@ -104,8 +104,8 @@ The ground station will run the positioning system for the motion capture system
 ```bash
 cd mr_ws
 python3 -m venv .env-sem
-pip install torch torchvision torchaudio # Make sure the CUDA version is installed
 source .env-sem/bin/activate
+pip install torch torchvision torchaudio # Make sure the CUDA version is installed
 cd src/sensors_tools
 pip install -e .
 ```

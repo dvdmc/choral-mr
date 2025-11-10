@@ -4,6 +4,8 @@ build/
 install/
 log/
 .venv*
+.env*
 *__pycache__*
 *egg-info
 checkpoints/
+mr_ws/src/sensors_tools/sensors_tools/bridges/test_data/dataset

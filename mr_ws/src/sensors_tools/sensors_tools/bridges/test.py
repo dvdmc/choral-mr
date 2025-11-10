@@ -11,7 +11,7 @@ import numpy as np
 
 from sensors_tools.bridges.scannet_bridge import ScanNetBridge, ScanNetBridgeConfig
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     config = ScanNetBridgeConfig()
     config.data_types = ["rgb", "depth", "semantic", "pose"]
     config.dataset_path = Path("/root/datasets/scannet/scene0005_00")
@@ -21,8 +21,7 @@ if __name__ == '__main__':
     bridge = ScanNetBridge(config)
     bridge.setup()
 
-
-    fig, ax = plt.subplots(1,3)
+    fig, ax = plt.subplots(1, 3)
 
     # Show the images
     for i in range(bridge.data_length):
@@ -39,7 +38,7 @@ if __name__ == '__main__':
         ax[2].set_title("Semantic")
 
         print("Pose: ", data["pose"])
-        
+
         plt.draw()
         plt.pause(0.001)
         input("Press [enter] to continue.")

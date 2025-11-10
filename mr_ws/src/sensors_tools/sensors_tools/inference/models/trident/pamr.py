@@ -12,7 +12,7 @@ class LocalAffinity(nn.Module):
         super(LocalAffinity, self).__init__()
         self.dilations = dilations
         weight = self._init_aff()
-        self.register_buffer('kernel', weight)
+        self.register_buffer("kernel", weight)
 
     def _init_aff(self):
         # initialising the shift kernel
@@ -42,11 +42,14 @@ class LocalAffinity(nn.Module):
         B, K, H, W = x.size()
         x = x.view(B * K, 1, H, W)
 
-        x_aff = torch.empty((K * B, len(self.dilations) * self.kernel.size(0), H, W), device=x.device)
+        x_aff = torch.empty(
+            (K * B, len(self.dilations) * self.kernel.size(0), H, W), device=x.device
+        )
         for i, d in enumerate(self.dilations):
-            x_pad = F.pad(x, [d] * 4, mode='replicate')
-            x_aff[:, self.kernel.size(0) * i:(i + 1) * self.kernel.size(0), :, :] = F.conv2d(x_pad, self.kernel,
-                                                                                             dilation=d)
+            x_pad = F.pad(x, [d] * 4, mode="replicate")
+            x_aff[:, self.kernel.size(0) * i : (i + 1) * self.kernel.size(0), :, :] = (
+                F.conv2d(x_pad, self.kernel, dilation=d)
+            )
         return x_aff.view(B, K, -1, H, W)
 
 
@@ -114,7 +117,9 @@ class PAMR(nn.Module):
         self.aff_std = LocalStDev(dilations)
 
     def forward(self, x, mask):
-        mask = F.interpolate(mask, size=x.size()[-2:], mode="bilinear", align_corners=True)
+        mask = F.interpolate(
+            mask, size=x.size()[-2:], mode="bilinear", align_corners=True
+        )
 
         # x: [BxKxHxW]
         # mask: [BxCxHxW]

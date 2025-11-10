@@ -216,16 +216,30 @@ class SemanticSegmentationSegformer(SemanticSegmentationBase):
 
         return aggregated
 
-    def to_rgb(self, semantics, bgr=False, feature_type=None, overlay=False, rgb_image=None):
-        
-        semantic_feature_type = feature_type if feature_type is not None else self.semantic_feature_type
+    def to_rgb(
+        self, semantics, bgr=False, feature_type=None, overlay=False, rgb_image=None
+    ):
+
+        semantic_feature_type = (
+            feature_type if feature_type is not None else self.semantic_feature_type
+        )
 
         if semantic_feature_type == "label":
-            return labels_to_image(semantics, self.semantics_color_map, bgr=bgr, overlay=overlay, rgb_image=rgb_image)
+            return labels_to_image(
+                semantics,
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
         elif semantic_feature_type == "probability_vector":
             return labels_to_image(
-                np.argmax(semantics, axis=-1), self.semantics_color_map, bgr=bgr, overlay=overlay, rgb_image=rgb_image)
-            
+                np.argmax(semantics, axis=-1),
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
 
     def get_semantic_dimensions(self):
         if self.semantic_feature_type == "label":

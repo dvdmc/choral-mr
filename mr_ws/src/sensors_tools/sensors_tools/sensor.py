@@ -9,11 +9,13 @@ from PIL import Image
 
 from sensors_tools.bridges import BridgeConfig, BridgeType, get_bridge
 
-from sensors_tools.inference.semantic_segmentation import InferenceConfig 
+from sensors_tools.inference.semantic_segmentation import InferenceConfig
 from sensors_tools.inference.semantic_segmentation import get_semantic_segmentation
 from sensors_tools.utils.random_utils import set_seed
 
-from sensors_tools.inference.semantic_segmentation.semantic_types import SemanticSegmentationMethods
+from sensors_tools.inference.semantic_segmentation.semantic_types import (
+    SemanticSegmentationMethods,
+)
 
 
 @dataclass
@@ -47,6 +49,7 @@ class SensorConfig:
     save_inference_path: Optional[Path] = None
     """ Path to save the inference results """
 
+
 class SemanticSegmentationSensor:
     def __init__(self, cfg: SensorConfig):
         self.cfg = cfg
@@ -54,14 +57,18 @@ class SemanticSegmentationSensor:
         set_seed(42)
 
     def setup(self):
-        # Setup the inference models. 
+        # Setup the inference models.
         # This is done before the bridge to allow for loading the model and weights before starting the robot.
         print("Setting up the inference model")
         if "semantic" in self.cfg.bridge_cfg.data_types:
-            assert self.cfg.inference_cfg is not None, "Inference cfg must be specified if semantic data is requested"
+            assert (
+                self.cfg.inference_cfg is not None
+            ), "Inference cfg must be specified if semantic data is requested"
             # Dump inference_cfg
             print(self.cfg.inference_cfg)
-            self.inference_model = get_semantic_segmentation(self.cfg.inference_type, self.cfg.inference_cfg)
+            self.inference_model = get_semantic_segmentation(
+                self.cfg.inference_type, self.cfg.inference_cfg
+            )
 
             if self.cfg.save_inference:
                 print("Saving inference results")
@@ -87,7 +94,6 @@ class SemanticSegmentationSensor:
         #     print("Found labels mapper")
         #     self.gt_labels_mapper = get_label_mapper(self.cfg.gt_labels_mapper)
 
-
     def get_data(self) -> Optional[dict]:
         if not self.bridge.ready:
             return None
@@ -96,11 +102,13 @@ class SemanticSegmentationSensor:
         data = self.bridge.get_data()
         if data is None:
             return None
-        
+
         print(f"Time to get data: {time.time() - start}")
         img = data["rgb"]
         if "semantic" in self.cfg.bridge_cfg.data_types:
-            assert self.cfg.inference_cfg is not None, "Inference cfg must be specified if semantic data is requested"
+            assert (
+                self.cfg.inference_cfg is not None
+            ), "Inference cfg must be specified if semantic data is requested"
 
             start = time.time()
             semantics = self.inference_model.infer(img)
@@ -112,7 +120,9 @@ class SemanticSegmentationSensor:
             #     data["semantic_gt"] = apply_label_map(data["semantic_gt"], self.gt_labels_mapper)
 
             data["semantic"] = semantics
-            data["semantic_rgb"] = self.inference_model.to_rgb(semantics, overlay=self.cfg.overlay, rgb_image=img)
+            data["semantic_rgb"] = self.inference_model.to_rgb(
+                semantics, overlay=self.cfg.overlay, rgb_image=img
+            )
 
             if self.cfg.save_inference:
                 print(f"Saving: {self.pred_rgb_path}/{self.seq}.png")

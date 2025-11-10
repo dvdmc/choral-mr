@@ -22,7 +22,9 @@ from poses_tools.frame_converter import FrameConverter
 
 from sensors_tools.sensor import SemanticSegmentationSensor, SensorConfig
 from sensors_tools.bridges import ControllableBridges, BridgeType, get_bridge_config
-from sensors_tools.inference.semantic_segmentation.semantic_types import SemanticSegmentationMethods
+from sensors_tools.inference.semantic_segmentation.semantic_types import (
+    SemanticSegmentationMethods,
+)
 from sensors_tools.inference.semantic_segmentation import (
     get_semantic_segmentation_config,
 )
@@ -78,24 +80,32 @@ class SemanticNode(Node):
 
         if "depth" in self.data_types:
             self.pub_depth = self.create_publisher(
-                ImageMsg, f"/{self.camera_name}/depth/image_raw", qos_profile_sensor_data
+                ImageMsg,
+                f"/{self.camera_name}/depth/image_raw",
+                qos_profile_sensor_data,
             )
             self.pub_point_cloud = self.create_publisher(
                 PointCloud2, f"/{self.camera_name}/point_cloud", qos_profile_sensor_data
             )
             if self.publish_freespace_point_cloud:
                 self.pub_freespace_point_cloud = self.create_publisher(
-                    PointCloud2, f"/{self.camera_name}/freespace_point_cloud", qos_profile_sensor_data
+                    PointCloud2,
+                    f"/{self.camera_name}/freespace_point_cloud",
+                    qos_profile_sensor_data,
                 )
         if "semantic" in self.data_types:
-            assert self.cfg.inference_cfg is not None, (
-                "Inference cfg must be specified if semantic data is requested"
-            )
+            assert (
+                self.cfg.inference_cfg is not None
+            ), "Inference cfg must be specified if semantic data is requested"
             self.pub_semantic_gt = self.create_publisher(
-                ImageMsg, f"/{self.camera_name}/semantic_gt/image_raw", qos_profile_sensor_data
+                ImageMsg,
+                f"/{self.camera_name}/semantic_gt/image_raw",
+                qos_profile_sensor_data,
             )
             self.pub_semantic = self.create_publisher(
-                ImageMsg, f"/{self.camera_name}/semantic/image_raw", qos_profile_sensor_data
+                ImageMsg,
+                f"/{self.camera_name}/semantic/image_raw",
+                qos_profile_sensor_data,
             )
 
         if self.frequency == -1:
@@ -595,14 +605,14 @@ class SemanticNode(Node):
 
         if "semantic" in self.data_types:
             if "semantic_gt" in data and data["semantic_gt"] is not None:
-              try:
-                  semantic_gt_img = self.sensor.inference_model.to_rgb(
-                      data["semantic_gt"], feature_type="label"
-                  )
-                  semantic_gt_msg = CvBridge().cv2_to_imgmsg(semantic_gt_img, "rgb8")
-                  self.pub_semantic_gt.publish(semantic_gt_msg)
-              except CvBridgeError as e:
-                  print(e)
+                try:
+                    semantic_gt_img = self.sensor.inference_model.to_rgb(
+                        data["semantic_gt"], feature_type="label"
+                    )
+                    semantic_gt_msg = CvBridge().cv2_to_imgmsg(semantic_gt_img, "rgb8")
+                    self.pub_semantic_gt.publish(semantic_gt_msg)
+                except CvBridgeError as e:
+                    print(e)
 
             semantic_msg = CvBridge().cv2_to_imgmsg(data["semantic_rgb"], "rgb8")
             self.pub_semantic.publish(semantic_msg)
@@ -622,9 +632,9 @@ class SemanticNode(Node):
                 self.pub_freespace_point_cloud.publish(free_pcd_msg)
 
             if "semantic" in self.data_types:
-                assert self.sensor.cfg.inference_cfg is not None, (
-                    "Inference not configured!"
-                )
+                assert (
+                    self.sensor.cfg.inference_cfg is not None
+                ), "Inference not configured!"
                 pcd_msg = self.generate_point_cloud_semantics_msg(
                     points_pcd,
                     points_RGB,

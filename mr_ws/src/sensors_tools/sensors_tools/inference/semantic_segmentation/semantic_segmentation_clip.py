@@ -11,7 +11,10 @@ from torchvision.transforms import CenterCrop, Compose
 from f3rm.features.clip import clip as f3rm_clip
 from f3rm.features.clip import tokenize
 
-from .semantic_segmentation_base import SemanticSegmentationBase, SemanticSegmentationBaseConfig
+from .semantic_segmentation_base import (
+    SemanticSegmentationBase,
+    SemanticSegmentationBaseConfig,
+)
 from .semantic_types import SemanticFeatureType
 from .semantic_utils import (
     SemanticDatasetType,
@@ -21,11 +24,13 @@ from .semantic_utils import (
     labels_to_image,
 )
 
+
 @dataclass
 class SemanticSegmentationCLIPConfig(SemanticSegmentationBaseConfig):
     """
-        Configuration class for Semantic Segmentation with CLIP
+    Configuration class for Semantic Segmentation with CLIP
     """
+
     encoder_name: str = "ViT-L/14@336px"
     """ Name of the CLIP model to use """
 
@@ -34,13 +39,13 @@ class SemanticSegmentationCLIPConfig(SemanticSegmentationBaseConfig):
 
     semantic_feature_type: SemanticFeatureType = "probability_vector"
     """ Semantic feature type """
-    
+
     model_path: Optional[str] = None
     """ Path to the CLIP model to use """
 
     sim_text_query: str = "clock"
     """ Text query to use for similarity heatmap """
-    
+
     skip_center_crop: bool = True
     """ Skip center crop """
 
@@ -49,6 +54,7 @@ class SemanticSegmentationCLIPConfig(SemanticSegmentationBaseConfig):
 
     colors: Optional[List[List[int]]] = None
     """ List of custom colors to use """
+
 
 class SemanticSegmentationCLIP(SemanticSegmentationBase):
     # CLIP available models: https://github.com/f3rm/f3rm/tree/main/f3rm/features/clip
@@ -71,6 +77,8 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
     ]
 
     # TODO(anonym): take the text query parameter out
+    # TODO(anonym): use multi-class semantic segmentation
+    # TODO(anonym): implement the templates version (see "radio" version)
     def __init__(
         self,
         cfg: SemanticSegmentationCLIPConfig,
@@ -80,9 +88,7 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
         self.cfg = cfg
 
         # NOTE: transform is called preprocess in the original code
-        model, transform = self.init_model(
-            device, self.cfg.encoder_name
-        )
+        model, transform = self.init_model(device, self.cfg.encoder_name)
 
         if self.cfg.semantic_feature_type not in self.supported_feature_types:
             raise ValueError(
@@ -96,14 +102,15 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
                     "custom_set_labels must be provided if semantic_dataset_type is CUSTOM_SET"
                 )
             self.semantics_color_map = get_labels_color_map(
-                self.cfg.semantic_dataset_type, num_classes=len(self.cfg.custom_set_labels)
+                self.cfg.semantic_dataset_type,
+                num_classes=len(self.cfg.custom_set_labels),
             )
             if self.cfg.colors is not None:
-              if len(self.cfg.colors) != len(self.cfg.custom_set_labels):
-                raise ValueError(
-                    "colors must have the same length as custom_set_labels if semantic_dataset_type is CUSTOM_SET"
-                )
-              self.semantics_color_map = self.cfg.colors
+                if len(self.cfg.colors) != len(self.cfg.custom_set_labels):
+                    raise ValueError(
+                        "colors must have the same length as custom_set_labels if semantic_dataset_type is CUSTOM_SET"
+                    )
+                self.semantics_color_map = self.cfg.colors
         elif self.cfg.semantic_dataset_type == "feature_similarity":
             if self.cfg.semantic_feature_type != "feature_vector":
                 raise ValueError(
@@ -116,13 +123,16 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
             self.semantics_color_map = None
             self.sim_scale = 3.0  # NOTE: This is for visualization
         else:
-            self.semantics_color_map = get_labels_color_map(self.cfg.semantic_dataset_type)
-            
+            self.semantics_color_map = get_labels_color_map(
+                self.cfg.semantic_dataset_type
+            )
+
         # Config the text encodings
         if self.cfg.semantic_dataset_type == "custom_set":
             self.label_names = self.cfg.custom_set_labels
             self.tokens = [
-                tokenize(text_query).to(device) for text_query in self.cfg.custom_set_labels
+                tokenize(text_query).to(device)
+                for text_query in self.cfg.custom_set_labels
             ]
         elif self.cfg.semantic_dataset_type == "feature_similarity":
             # We already checked that semantic_feature_type is "feature_vector","
@@ -146,9 +156,9 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
         if self.cfg.skip_center_crop:
             # Check there is exactly one center crop transform
             is_center_crop = [isinstance(t, CenterCrop) for t in transform.transforms]
-            assert sum(is_center_crop) == 1, (
-                "There should be exactly one CenterCrop transform"
-            )
+            assert (
+                sum(is_center_crop) == 1
+            ), "There should be exactly one CenterCrop transform"
             # Create new transform without center crop
             transform = Compose(
                 [t for t in transform.transforms if not isinstance(t, CenterCrop)]
@@ -157,9 +167,7 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
 
         super().__init__(model, transform, device, self.cfg.semantic_feature_type)
 
-    def init_model(
-        self, device, encoder_name
-    ):
+    def init_model(self, device, encoder_name):
         # Check if selected config is available
         if encoder_name not in self.available_configs:
             raise ValueError(
@@ -270,16 +278,31 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
         self.semantics = pred.cpu().numpy()
         return self.semantics
 
-    def to_rgb(self, semantics, bgr=False, feature_type=None, overlay=False, rgb_image=None):
-        
-        semantic_feature_type = feature_type if feature_type is not None else self.semantic_feature_type
+    def to_rgb(
+        self, semantics, bgr=False, feature_type=None, overlay=False, rgb_image=None
+    ):
+
+        semantic_feature_type = (
+            feature_type if feature_type is not None else self.semantic_feature_type
+        )
 
         if semantic_feature_type == "label":
-            return labels_to_image(semantics, self.semantics_color_map, bgr=bgr, overlay=overlay, rgb_image=rgb_image)
+            return labels_to_image(
+                semantics,
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
         elif semantic_feature_type == "probability_vector":
             return labels_to_image(
-                np.argmax(semantics, axis=-1), self.semantics_color_map, bgr=bgr, overlay=overlay, rgb_image=rgb_image)
-            
+                np.argmax(semantics, axis=-1),
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
+
         elif semantic_feature_type == "feature_vector":
             # Transform semantic to tensor
             # TODO(anonym): check if doing these operations (and functions below) in CPU is more efficient (it probably is)
@@ -298,8 +321,11 @@ class SemanticSegmentationCLIP(SemanticSegmentationBase):
             else:
                 pred = sims.argmax(dim=-1)
                 return labels_to_image(
-                    pred.cpu().detach().numpy(), self.semantics_color_map, bgr=bgr,
-                    overlay=overlay, rgb_image=rgb_image
+                    pred.cpu().detach().numpy(),
+                    self.semantics_color_map,
+                    bgr=bgr,
+                    overlay=overlay,
+                    rgb_image=rgb_image,
                 )
 
     def features_to_sims(self, semantics):

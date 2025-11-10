@@ -2,10 +2,11 @@ from dataclasses import dataclass
 from typing import Optional
 from . import semantic_types
 
+
 @dataclass
 class SemanticSegmentationBaseConfig:
     """
-      Configuration class for Semantic Segmentation
+    Configuration class for Semantic Segmentation
     """
 
     semantic_feature_type: semantic_types.SemanticFeatureType = "probability_vector"
@@ -16,7 +17,13 @@ class SemanticSegmentationBaseConfig:
 
 
 class SemanticSegmentationBase:
-    def __init__(self, model, transform, device, semantic_feature_type: semantic_types.SemanticFeatureType):
+    def __init__(
+        self,
+        model,
+        transform,
+        device,
+        semantic_feature_type: semantic_types.SemanticFeatureType,
+    ):
         self.model = model
         self.transform = transform
         self.device = device
@@ -26,7 +33,9 @@ class SemanticSegmentationBase:
 
     def infer(self, image):
         raise NotImplementedError
-    
+
     # TODO(anonym): test if this works directly for transforming a single label
-    def to_rgb(self, semantics, bgr=False, feature_type=None, overlay=False, rgb_image=None):
+    def to_rgb(
+        self, semantics, bgr=False, feature_type=None, overlay=False, rgb_image=None
+    ):
         return NotImplementedError

@@ -22,12 +22,16 @@ ScanNetSensorDataTypes = Literal["rgb", "depth", "semantic", "pose"]
     - "pose": query poses.
 """
 
+
 @dataclass
 class ScanNetVOCBridgeConfig(BaseBridgeConfig):
     """
-        Configuration class for ScanNet
+    Configuration class for ScanNet
     """
-    data_types: List[ScanNetSensorDataTypes] = field(default_factory=list, metadata={"default": ["rgb", "poses"]})
+
+    data_types: List[ScanNetSensorDataTypes] = field(
+        default_factory=list, metadata={"default": ["rgb", "poses"]}
+    )
     """ Data types to query """
 
     dataset_path: Path = Path("/root/dataset/ScanNet")
@@ -39,19 +43,20 @@ class ScanNetVOCBridgeConfig(BaseBridgeConfig):
 
 class ScanNetVOCBridge(BaseBridge):
     """
-        Bridge for Scannet-like data but for the coco_voc dataset
-        Usually extracted from Airsim
+    Bridge for Scannet-like data but for the coco_voc dataset
+    Usually extracted from Airsim
     """
+
     def __init__(self, cfg: ScanNetVOCBridgeConfig):
         """
-            Constructor
+        Constructor
         """
         super().__init__(cfg)
         self.cfg = cfg
 
     def setup(self):
         """
-            Setup the bridge
+        Setup the bridge
         """
         # Data acquisition configuration
         self.static_tf = []
@@ -61,7 +66,7 @@ class ScanNetVOCBridge(BaseBridge):
         self.data_length = len(os.listdir(self.cfg.dataset_path / "color"))
         print("Sequence length: ", self.data_length)
         print("Each n frame: ", self.each_n_frame)
-        
+
         # Sim config data TODO: Move to config file
         #######################################################
         # RELEVANT CAMERA DATA
@@ -103,20 +108,34 @@ class ScanNetVOCBridge(BaseBridge):
                 self.total_steps = int(line.split(" ")[2])
 
         # We adjust to the depth image size
-        ratio_width = self.width_depth/self.width_color
-        ratio_height = self.height_depth/self.height_color
+        ratio_width = self.width_depth / self.width_color
+        ratio_height = self.height_depth / self.height_color
         self.width_color = self.width_depth
         self.height_color = self.height_depth
         # Adapt cx, cy, fx and fy
-        self.cx_color = self.cx_color*ratio_width
-        self.cy_color = self.cy_color*ratio_height
-        self.fx_color = self.fx_color*ratio_width
-        self.fy_color = self.fy_color*ratio_height
-        self.camera_info = CameraData(cx=self.cx_color, cy=self.cy_color, fx=self.fx_color, fy=self.fy_color, width=self.width_color, height=self.height_color) 
+        self.cx_color = self.cx_color * ratio_width
+        self.cy_color = self.cy_color * ratio_height
+        self.fx_color = self.fx_color * ratio_width
+        self.fy_color = self.fy_color * ratio_height
+        self.camera_info = CameraData(
+            cx=self.cx_color,
+            cy=self.cy_color,
+            fx=self.fx_color,
+            fy=self.fy_color,
+            width=self.width_color,
+            height=self.height_color,
+        )
         print("CAMERA INFO: ", self.camera_info)
-        self.depth_camera_info = CameraData(cx=self.cx_depth, cy=self.cy_depth, fx=self.fx_depth, fy=self.fy_depth, width=self.width_depth, height=self.height_depth)
+        self.depth_camera_info = CameraData(
+            cx=self.cx_depth,
+            cy=self.cy_depth,
+            fx=self.fx_depth,
+            fy=self.fy_depth,
+            width=self.width_depth,
+            height=self.height_depth,
+        )
         #######################################################
-    
+
         # Init pose
         pose_path = self.cfg.dataset_path / "pose" / f"{self.seq_n}.txt"
         translation_matrix = np.loadtxt(pose_path)
@@ -137,17 +156,23 @@ class ScanNetVOCBridge(BaseBridge):
             # Load RGB image
             img_path = self.cfg.dataset_path / "color" / f"{self.seq_n}.jpg"
             # Open image as a np array
-            img = (Image.open(img_path)).convert('RGB')
-            img = img.resize((self.depth_camera_info.width, self.depth_camera_info.height)) #Resize to match the depth image
+            img = (Image.open(img_path)).convert("RGB")
+            img = img.resize(
+                (self.depth_camera_info.width, self.depth_camera_info.height)
+            )  # Resize to match the depth image
             # img = img.crop((80, 0, 560, 480)) #Crop the image to match the depth image
             data["rgb"] = np.array(img)
-        
+
         if "semantic" in self.cfg.data_types:
             # Load GT label
             label_path = self.cfg.dataset_path / "label" / f"{self.seq_n}.png"
             label = np.array(Image.open(label_path))
-            label[np.where(label == 255)] = 0 #Remove the white contour
-            label = cv2.resize(label, (self.depth_camera_info.width, self.depth_camera_info.height), interpolation = cv2.INTER_NEAREST)
+            label[np.where(label == 255)] = 0  # Remove the white contour
+            label = cv2.resize(
+                label,
+                (self.depth_camera_info.width, self.depth_camera_info.height),
+                interpolation=cv2.INTER_NEAREST,
+            )
             # label = label[:, 80:560]
             data["semantic_gt"] = label
 
@@ -155,16 +180,15 @@ class ScanNetVOCBridge(BaseBridge):
             # Load depth image (depth frames as 16-bit pngs (depth shift 1000))
             depth_path = self.cfg.dataset_path / "depth" / f"{self.seq_n}.png"
             depth = np.array(Image.open(depth_path))
-            depth = (depth/1000).astype(np.float32)
+            depth = (depth / 1000).astype(np.float32)
             # depth = depth[:, 80:560]
             data["depth"] = depth
 
         return data
 
-    
     def get_data(self) -> dict:
         """
-            Get data from the bridge
+        Get data from the bridge
         """
         data = {}
         if "pose" in self.cfg.data_types:
@@ -174,7 +198,7 @@ class ScanNetVOCBridge(BaseBridge):
             rotation = Rotation.from_matrix(translation_matrix[:3, :3])
             data["pose"] = (translation, rotation)
             self.pose = (translation, rotation)
-            
+
         img_data = self.open_images()
 
         data.update(img_data)
@@ -183,13 +207,13 @@ class ScanNetVOCBridge(BaseBridge):
 
     def get_pose(self) -> Tuple[np.ndarray, Rotation]:
         """
-            Get pose from the bridge
+        Get pose from the bridge
         """
         return self.pose
-    
+
     def move(self):
         """
-            Apply increment seq as moving the sensor
+        Apply increment seq as moving the sensor
         """
         self.seq_n += self.each_n_frame
         if self.seq_n >= self.total_steps:

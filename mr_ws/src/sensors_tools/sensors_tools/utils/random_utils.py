@@ -2,6 +2,7 @@ import random
 import numpy as np
 import torch
 
+
 def set_seed(seed: int):
     # Set common random seeds
     random.seed(42)

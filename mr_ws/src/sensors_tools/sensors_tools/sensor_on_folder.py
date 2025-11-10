@@ -24,7 +24,16 @@ if __name__ == "__main__":
     sem_cfg = SemanticSegmentationTridentConfig(
         semantic_feature_type="probability_vector",
         semantic_dataset_type="custom_set",
-        custom_set_labels=["rubble", "road", "grass", "house", "tree", "water", "car", "sand"],
+        custom_set_labels=[
+            "rubble",
+            "road",
+            "grass",
+            "house",
+            "tree",
+            "water",
+            "car",
+            "sand",
+        ],
         colors=[
             [0, 0, 0],
             [125, 125, 125],

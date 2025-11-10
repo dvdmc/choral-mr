@@ -173,7 +173,7 @@ class SemanticSegmentationTrident(SemanticSegmentationBase):
         pred, logits = self.model.predict(image_pil, img_t)
         probs = self.softmax(logits)
         probs = recover_size(probs)
-        
+
         if self.semantic_feature_type == "probability_vector":
             self.semantics = probs.permute(1, 2, 0).cpu().numpy()
             return self.semantics
@@ -181,20 +181,34 @@ class SemanticSegmentationTrident(SemanticSegmentationBase):
         # Get the label
         pred = probs.argmax(dim=0)
         self.semantics = pred.cpu().numpy()
-        
+
         return self.semantics
 
-    def to_rgb(self, semantics, bgr=False, feature_type=None, rgb_image=None, overlay=False):
-        
-        semantic_feature_type = feature_type if feature_type is not None else self.semantic_feature_type
+    def to_rgb(
+        self, semantics, bgr=False, feature_type=None, rgb_image=None, overlay=False
+    ):
+
+        semantic_feature_type = (
+            feature_type if feature_type is not None else self.semantic_feature_type
+        )
         if semantic_feature_type == "label":
-            return labels_to_image(semantics, self.semantics_color_map, bgr=bgr, overlay=overlay, rgb_image=rgb_image)
+            return labels_to_image(
+                semantics,
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
         elif semantic_feature_type == "probability_vector":
             print(f"LABELS: {np.unique(np.argmax(semantics, axis=-1))}")
             return labels_to_image(
-                np.argmax(semantics, axis=-1), self.semantics_color_map, bgr=bgr, overlay=overlay, rgb_image=rgb_image)
-            
-        
+                np.argmax(semantics, axis=-1),
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
+
     def get_semantic_dimensions(self):
         if self.semantic_feature_type == "label":
             return 1

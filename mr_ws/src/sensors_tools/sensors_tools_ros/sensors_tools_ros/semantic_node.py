@@ -3,6 +3,7 @@
 import rclpy
 from sensors_tools_ros.semantic_ros import SemanticNode
 
+
 def main(args=None):
     rclpy.init(args=args)
 
@@ -12,5 +13,6 @@ def main(args=None):
     node.destroy_node()
     rclpy.shutdown()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

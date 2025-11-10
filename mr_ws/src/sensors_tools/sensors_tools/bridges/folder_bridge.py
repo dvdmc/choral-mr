@@ -18,14 +18,16 @@ from sensors_tools.bridges.base_bridge import BaseBridge, BaseBridgeConfig
 
 FolderSensorDataTypes = Literal["rgb"]
 
+
 @dataclass
 class FolderBridgeConfig(BaseBridgeConfig):
     """
-        Configuration class for FolderBridge
+    Configuration class for FolderBridge
     """
+
     dataset_path: Path = Path("/root/datasets/folder")
     """ Path to the dataset """
-    
+
     data_types: List[FolderSensorDataTypes] = field(
         default_factory=list, metadata={"default": ["rgb"]}
     )
@@ -36,16 +38,16 @@ class FolderBridgeConfig(BaseBridgeConfig):
 
 class FolderBridge(BaseBridge):
     """
-        Bridge for folder data
+    Bridge for folder data
     """
+
     def __init__(self, cfg: FolderBridgeConfig):
         super().__init__(cfg)
         self.cfg = cfg
 
-    
     def setup(self):
         """
-            Setup the bridge
+        Setup the bridge
         """
         # Data acquisition configuration
         print("Dataset path: ", self.cfg.dataset_path)
@@ -54,46 +56,45 @@ class FolderBridge(BaseBridge):
         self.data_length = len(self.files)
         self.seq_n = 0
         print("Sequence length: ", self.data_length)
-    
+
         self.ready = True
 
-    
     def get_data(self) -> dict:
         """
-            Get data from the bridge
+        Get data from the bridge
         """
         data = {}
         if "rgb" in self.cfg.data_types:
-          if self.seq_n < len(self.files):
-              # Load RGB image
-              img_path = self.cfg.dataset_path / self.files[self.seq_n]
-              # Open image as a np array
-              img = (Image.open(img_path)).convert('RGB')
-              img = img.resize((self.cfg.width, self.cfg.height))
-              data["rgb"] = np.array(img)
-          else:
-              print("No more files to load")
+            if self.seq_n < len(self.files):
+                # Load RGB image
+                img_path = self.cfg.dataset_path / self.files[self.seq_n]
+                # Open image as a np array
+                img = (Image.open(img_path)).convert("RGB")
+                img = img.resize((self.cfg.width, self.cfg.height))
+                data["rgb"] = np.array(img)
+            else:
+                print("No more files to load")
 
         self.increment_seq()
 
         return data
-    
+
     def get_pose(self) -> Tuple[np.ndarray, Rotation]:
         """
-            Get pose from the bridge
+        Get pose from the bridge
         """
         return self.pose
-    
+
     def move(self):
         """
-            Apply increment seq as moving the sensor
+        Apply increment seq as moving the sensor
         """
         self.increment_seq()
         return True
-    
+
     def increment_seq(self):
         """
-            Increment the sequence number
+        Increment the sequence number
         """
         self.seq_n += 1
         if self.seq_n == self.data_length:

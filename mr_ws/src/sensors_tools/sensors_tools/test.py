@@ -10,27 +10,34 @@ from matplotlib import pyplot as plt
 import numpy as np
 from sensor import SensorConfig, SemanticSegmentationSensor
 from sensors_tools.bridges.test_bridge import TestBridgeConfig
-from sensors_tools.inference.semantic_segmentation import SemanticSegmentationDeepLabV3Config
+from sensors_tools.inference.semantic_segmentation.semantic_segmentation_deep_lab_v3 import (
+    SemanticSegmentationDeepLabV3Config,
+)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Setup the sensor
-    bridge_cfg = TestBridgeConfig(data_types=["rgb", "semantic", "depth", "pose"], dataset_path=Path("./bridges/test_data/dataset/"), width=512, height=512)
-    sem_cfg = SemanticSegmentationDeepLabV3Config(semantic_feature_type="probability_vector", encoder_name="resnet50", semantic_dataset_type="voc")
-    cfg = SensorConfig(
-        bridge_cfg = bridge_cfg,
-        bridge_type = "test",
-        inference_cfg = sem_cfg
+    bridge_cfg = TestBridgeConfig(
+        data_types=["rgb", "semantic", "depth", "pose"],
+        dataset_path=Path("./bridges/test_data/dataset/"),
+        width=512,
+        height=512,
     )
+    sem_cfg = SemanticSegmentationDeepLabV3Config(
+        semantic_feature_type="probability_vector",
+        encoder_name="resnet50",
+        semantic_dataset_type="voc",
+    )
+    cfg = SensorConfig(bridge_cfg=bridge_cfg, bridge_type="test", inference_type="deep_lab_v3", inference_cfg=sem_cfg)
 
     sensor = SemanticSegmentationSensor(cfg)
     sensor.setup()
 
-    fig, ax = plt.subplots(1,4)
+    fig, ax = plt.subplots(1, 4)
 
     # Show the images
     for i in range(5):
         data = sensor.get_data()
-        if(data is None):
+        if data is None:
             print("Sensor is not ready")
             continue
         ax[0].imshow(data["rgb"])
@@ -48,7 +55,7 @@ if __name__ == '__main__':
         ax[3].set_title("Semantic pred")
 
         print("Pose: ", data["pose"])
-        
+
         plt.draw()
         plt.pause(0.001)
         input("Press [enter] to continue.")

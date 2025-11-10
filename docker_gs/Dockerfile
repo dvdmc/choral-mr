@@ -114,11 +114,12 @@ RUN apt update && apt install ros-jazzy-navigation2 ros-jazzy-nav2-bringup ros-j
 
 RUN source /opt/ros/jazzy/setup.bash && colcon build --parallel-workers 4 --symlink-install
 
+RUN apt install -y libpcl-dev ros-jazzy-pcl-conversions python3.12-venv
+
 # For Computer Vision DL (requires starting from CUDA)
 RUN pip install colcon-lcov-result cpplint cmakelint PySimpleGUI-4-foss --break-system-packages
 # Move to the venv for now to make the image smaller
 # RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 --break-system-packages
-RUN apt install -y libpcl-dev ros-jazzy-pcl-conversions python3.12-venv
 
 ## Install OR-TOOLS
 WORKDIR /root/

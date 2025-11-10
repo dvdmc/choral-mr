@@ -18,12 +18,14 @@ try:
         list_repo_files,
     )
     from huggingface_hub.utils import EntryNotFoundError
+
     _has_hf_hub = True
 except ImportError:
     _has_hf_hub = False
 
 try:
     import safetensors.torch
+
     _has_safetensors = True
 except ImportError:
     _has_safetensors = False
@@ -34,29 +36,25 @@ from .tokenizer import HFTokenizer
 # Default name for a weights file hosted on the Huggingface Hub.
 HF_WEIGHTS_NAME = "open_clip_pytorch_model.bin"  # default pytorch pkl
 HF_SAFE_WEIGHTS_NAME = "open_clip_model.safetensors"  # safetensors version
-HF_CONFIG_NAME = 'open_clip_config.json'
+HF_CONFIG_NAME = "open_clip_config.json"
 
 
-def save_config_for_hf(
-        model,
-        config_path: str,
-        model_config: Optional[dict]
-):
+def save_config_for_hf(model, config_path: str, model_config: Optional[dict]):
     preprocess_cfg = {
-        'mean': model.visual.image_mean,
-        'std': model.visual.image_std,
+        "mean": model.visual.image_mean,
+        "std": model.visual.image_std,
     }
-    other_pp = getattr(model.visual, 'preprocess_cfg', {})
-    if 'interpolation' in other_pp:
-        preprocess_cfg['interpolation'] = other_pp['interpolation']
-    if 'resize_mode' in other_pp:
-        preprocess_cfg['resize_mode'] = other_pp['resize_mode']
+    other_pp = getattr(model.visual, "preprocess_cfg", {})
+    if "interpolation" in other_pp:
+        preprocess_cfg["interpolation"] = other_pp["interpolation"]
+    if "resize_mode" in other_pp:
+        preprocess_cfg["resize_mode"] = other_pp["resize_mode"]
     hf_config = {
-        'model_cfg': model_config,
-        'preprocess_cfg': preprocess_cfg,
+        "model_cfg": model_config,
+        "preprocess_cfg": preprocess_cfg,
     }
 
-    with config_path.open('w') as f:
+    with config_path.open("w") as f:
         json.dump(hf_config, f, indent=2)
 
 
@@ -65,8 +63,8 @@ def save_for_hf(
     tokenizer: HFTokenizer,
     model_config: dict,
     save_directory: str,
-    safe_serialization: Union[bool, str] = 'both',
-    skip_weights : bool = False,
+    safe_serialization: Union[bool, str] = "both",
+    skip_weights: bool = False,
 ):
     config_filename = HF_CONFIG_NAME
 
@@ -92,7 +90,7 @@ def push_to_hf_hub(
     tokenizer,
     model_config: Optional[dict],
     repo_id: str,
-    commit_message: str = 'Add model',
+    commit_message: str = "Add model",
     token: Optional[str] = None,
     revision: Optional[str] = None,
     private: bool = False,
@@ -103,7 +101,7 @@ def push_to_hf_hub(
     if not isinstance(tokenizer, HFTokenizer):
         # FIXME this makes it awkward to push models with new tokenizers, come up with better soln.
         # default CLIP tokenizers use https://huggingface.co/openai/clip-vit-large-patch14
-        tokenizer = HFTokenizer('openai/clip-vit-large-patch14')
+        tokenizer = HFTokenizer("openai/clip-vit-large-patch14")
 
     # Create repo if it doesn't exist yet
     repo_url = create_repo(repo_id, token=token, private=private, exist_ok=True)
@@ -120,10 +118,12 @@ def push_to_hf_hub(
         repo_files = set(list_repo_files(repo_id))
         repo_exists = True
     except Exception as e:
-        print('Repo does not exist', e)
+        print("Repo does not exist", e)
 
     try:
-        get_hf_file_metadata(hf_hub_url(repo_id=repo_id, filename="README.md", revision=revision))
+        get_hf_file_metadata(
+            hf_hub_url(repo_id=repo_id, filename="README.md", revision=revision)
+        )
         has_readme = True
     except EntryNotFoundError:
         has_readme = False
@@ -142,7 +142,7 @@ def push_to_hf_hub(
         # Add readme if it does not exist
         if not has_readme:
             model_card = model_card or {}
-            model_name = repo_id.split('/')[-1]
+            model_name = repo_id.split("/")[-1]
             readme_path = Path(tmpdir) / "README.md"
             readme_text = generate_readme(model_card, model_name)
             readme_path.write_text(readme_text)
@@ -161,12 +161,12 @@ def push_pretrained_to_hf_hub(
     model_name,
     pretrained: str,
     repo_id: str,
-    precision: str = 'fp32',
+    precision: str = "fp32",
     image_mean: Optional[Tuple[float, ...]] = None,
     image_std: Optional[Tuple[float, ...]] = None,
     image_interpolation: Optional[str] = None,
     image_resize_mode: Optional[str] = None,  # only effective for inference
-    commit_message: str = 'Add model',
+    commit_message: str = "Add model",
     token: Optional[str] = None,
     revision: Optional[str] = None,
     private: bool = False,
@@ -189,7 +189,7 @@ def push_pretrained_to_hf_hub(
     tokenizer = get_tokenizer(model_name)
     if hf_tokenizer_self:
         # make hf tokenizer config in the uploaded model point to self instead of original location
-        model_config['text']['hf_tokenizer_name'] = repo_id
+        model_config["text"]["hf_tokenizer_name"] = repo_id
 
     push_to_hf_hub(
         model=model,
@@ -202,13 +202,13 @@ def push_pretrained_to_hf_hub(
         private=private,
         create_pr=create_pr,
         model_card=model_card,
-        safe_serialization='both',
+        safe_serialization="both",
     )
 
 
 def generate_readme(model_card: dict, model_name: str):
-    tags = model_card.pop('tags', ('clip',))
-    pipeline_tag = model_card.pop('pipeline_tag', 'zero-shot-image-classification')
+    tags = model_card.pop("tags", ("clip",))
+    pipeline_tag = model_card.pop("pipeline_tag", "zero-shot-image-classification")
     readme_text = "---\n"
     if tags:
         readme_text += "tags:\n"
@@ -217,16 +217,16 @@ def generate_readme(model_card: dict, model_name: str):
     readme_text += "library_name: open_clip\n"
     readme_text += f"pipeline_tag: {pipeline_tag}\n"
     readme_text += f"license: {model_card.get('license', 'mit')}\n"
-    if 'details' in model_card and 'Dataset' in model_card['details']:
-        readme_text += 'datasets:\n'
+    if "details" in model_card and "Dataset" in model_card["details"]:
+        readme_text += "datasets:\n"
         readme_text += f"- {model_card['details']['Dataset'].lower()}\n"
     readme_text += "---\n"
     readme_text += f"# Model card for {model_name}\n"
-    if 'description' in model_card:
+    if "description" in model_card:
         readme_text += f"\n{model_card['description']}\n"
-    if 'details' in model_card:
+    if "details" in model_card:
         readme_text += f"\n## Model Details\n"
-        for k, v in model_card['details'].items():
+        for k, v in model_card["details"].items():
             if isinstance(v, (list, tuple)):
                 readme_text += f"- **{k}:**\n"
                 for vi in v:
@@ -237,22 +237,22 @@ def generate_readme(model_card: dict, model_name: str):
                     readme_text += f"  - {ki}: {vi}\n"
             else:
                 readme_text += f"- **{k}:** {v}\n"
-    if 'usage' in model_card:
+    if "usage" in model_card:
         readme_text += f"\n## Model Usage\n"
-        readme_text += model_card['usage']
-        readme_text += '\n'
+        readme_text += model_card["usage"]
+        readme_text += "\n"
 
-    if 'comparison' in model_card:
+    if "comparison" in model_card:
         readme_text += f"\n## Model Comparison\n"
-        readme_text += model_card['comparison']
-        readme_text += '\n'
+        readme_text += model_card["comparison"]
+        readme_text += "\n"
 
-    if 'citation' in model_card:
+    if "citation" in model_card:
         readme_text += f"\n## Citation\n"
-        if not isinstance(model_card['citation'], (list, tuple)):
-            citations = [model_card['citation']]
+        if not isinstance(model_card["citation"], (list, tuple)):
+            citations = [model_card["citation"]]
         else:
-            citations = model_card['citation']
+            citations = model_card["citation"]
         for c in citations:
             readme_text += f"```bibtex\n{c}\n```\n"
 
@@ -262,44 +262,66 @@ def generate_readme(model_card: dict, model_name: str):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Push to Hugging Face Hub")
     parser.add_argument(
-        "--model", type=str, help="Name of the model to use.",
+        "--model",
+        type=str,
+        help="Name of the model to use.",
     )
     parser.add_argument(
-        "--pretrained", type=str,
+        "--pretrained",
+        type=str,
         help="Use a pretrained CLIP model weights with the specified tag or file path.",
     )
     parser.add_argument(
-        "--repo-id", type=str,
+        "--repo-id",
+        type=str,
         help="Destination HF Hub repo-id ie 'organization/model_id'.",
     )
     parser.add_argument(
-        "--precision", type=str, default='fp32',
+        "--precision",
+        type=str,
+        default="fp32",
     )
     parser.add_argument(
-        '--image-mean', type=float, nargs='+', default=None, metavar='MEAN',
-        help='Override default image mean value of dataset')
-    parser.add_argument(
-        '--image-std', type=float, nargs='+', default=None, metavar='STD',
-        help='Override default image std deviation of of dataset')
-    parser.add_argument(
-        '--image-interpolation',
-        default=None, type=str, choices=['bicubic', 'bilinear', 'random'],
-        help="image resize interpolation"
+        "--image-mean",
+        type=float,
+        nargs="+",
+        default=None,
+        metavar="MEAN",
+        help="Override default image mean value of dataset",
     )
     parser.add_argument(
-        '--image-resize-mode',
-        default=None, type=str, choices=['shortest', 'longest', 'squash'],
-        help="image resize mode during inference"
+        "--image-std",
+        type=float,
+        nargs="+",
+        default=None,
+        metavar="STD",
+        help="Override default image std deviation of of dataset",
+    )
+    parser.add_argument(
+        "--image-interpolation",
+        default=None,
+        type=str,
+        choices=["bicubic", "bilinear", "random"],
+        help="image resize interpolation",
+    )
+    parser.add_argument(
+        "--image-resize-mode",
+        default=None,
+        type=str,
+        choices=["shortest", "longest", "squash"],
+        help="image resize mode during inference",
     )
     parser.add_argument(
         "--hf-tokenizer-self",
         default=False,
         action="store_true",
-        help="make hf_tokenizer_name point in uploaded config point to itself"
+        help="make hf_tokenizer_name point in uploaded config point to itself",
     )
     args = parser.parse_args()
 
-    print(f'Saving model {args.model} with pretrained weights {args.pretrained} to Hugging Face Hub at {args.repo_id}')
+    print(
+        f"Saving model {args.model} with pretrained weights {args.pretrained} to Hugging Face Hub at {args.repo_id}"
+    )
 
     # FIXME add support to pass model_card json / template from file via cmd line
 
@@ -314,4 +336,4 @@ if __name__ == "__main__":
         image_resize_mode=args.image_resize_mode,
     )
 
-    print(f'{args.model} saved.')
+    print(f"{args.model} saved.")

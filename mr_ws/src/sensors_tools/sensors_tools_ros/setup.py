@@ -21,7 +21,7 @@ setup(
     description="Sensors tools for conversion and inference",
     license="BSD",
     extras_require={
-    "test": ["pytest"],
+        "test": ["pytest"],
     },
     entry_points={
         "console_scripts": [

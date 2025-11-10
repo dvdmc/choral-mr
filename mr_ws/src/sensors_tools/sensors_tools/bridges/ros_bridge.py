@@ -102,7 +102,10 @@ class ROSBridge(BaseBridge):
         # RELEVANT CAMERA DATA
         if "rgb" in self.cfg.data_types:
             self.node.create_subscription(
-                CameraInfo, self.cfg.camera_info_topic, self.camera_info_callback, qos_profile_sensor_data
+                CameraInfo,
+                self.cfg.camera_info_topic,
+                self.camera_info_callback,
+                qos_profile_sensor_data,
             )
 
         if "depth" in self.cfg.data_types:
@@ -115,10 +118,16 @@ class ROSBridge(BaseBridge):
 
         if "rgb" in self.cfg.data_types and "depth" in self.cfg.data_types:
             self.rgb_sub = message_filters.Subscriber(
-                self.node, RosImage, self.cfg.rgb_topic, qos_profile=qos_profile_sensor_data
+                self.node,
+                RosImage,
+                self.cfg.rgb_topic,
+                qos_profile=qos_profile_sensor_data,
             )
             self.depth_sub = message_filters.Subscriber(
-                self.node, RosImage, self.cfg.depth_topic, qos_profile=qos_profile_sensor_data
+                self.node,
+                RosImage,
+                self.cfg.depth_topic,
+                qos_profile=qos_profile_sensor_data,
             )
             self.sync = message_filters.ApproximateTimeSynchronizer(
                 [self.rgb_sub, self.depth_sub], 10, 0.5
@@ -127,28 +136,40 @@ class ROSBridge(BaseBridge):
         else:
             if "rgb" in self.cfg.data_types:
                 self.node.create_subscription(
-                    RosImage, self.cfg.rgb_topic, self.rgb_callback, qos_profile_sensor_data
+                    RosImage,
+                    self.cfg.rgb_topic,
+                    self.rgb_callback,
+                    qos_profile_sensor_data,
                 )
             if "depth" in self.cfg.data_types:
                 self.node.create_subscription(
-                    RosImage, self.cfg.depth_topic, self.depth_callback, qos_profile_sensor_data
+                    RosImage,
+                    self.cfg.depth_topic,
+                    self.depth_callback,
+                    qos_profile_sensor_data,
                 )
 
     def check_ready(self):
         if "rgb" in self.cfg.data_types and (
             self.rgb is None or not self.has_camera_info
         ):
-            self.node.get_logger().warn(f"RGB data not available yet in {self.cfg.rgb_topic}")
+            self.node.get_logger().warn(
+                f"RGB data not available yet in {self.cfg.rgb_topic}"
+            )
             return False
 
         if "depth" in self.cfg.data_types and (
             self.depth is None or not self.has_depth_camera_info
         ):
-            self.node.get_logger().warn(f"Depth data not available yet in {self.cfg.depth_topic}")
+            self.node.get_logger().warn(
+                f"Depth data not available yet in {self.cfg.depth_topic}"
+            )
             return False
 
         if "pose" in self.cfg.data_types and self.pose is None:
-            self.node.get_logger().warn(f"Pose data not available yet in {self.cfg.poses_tf}")
+            self.node.get_logger().warn(
+                f"Pose data not available yet in {self.cfg.poses_tf}"
+            )
             return False
 
         self._ready = True
@@ -241,7 +262,8 @@ class ROSBridge(BaseBridge):
         Callback for the depth image
         """
         depth = (
-            self.cv_bridge.imgmsg_to_cv2(data, "passthrough").astype(np.float32) / 1000.0
+            self.cv_bridge.imgmsg_to_cv2(data, "passthrough").astype(np.float32)
+            / 1000.0
         )  # Convert to meters
         self.depth_timestamp = data.header.stamp
 
@@ -249,15 +271,19 @@ class ROSBridge(BaseBridge):
         zero_ratio = np.count_nonzero(depth == 0) / depth.size
 
         if zero_ratio > 0.7:
-            depth[:,:] = 0.0  # Zero out the entire image
+            depth[:, :] = 0.0  # Zero out the entire image
 
         # Apply median filter directly on float32 array
-        depth_filtered = median_filter(depth, size=7)  # You can change size to 3, 7, etc.
-            
+        depth_filtered = median_filter(
+            depth, size=7
+        )  # You can change size to 3, 7, etc.
+
         # Resize depth to RGB resolution if available
         if self.has_camera_info and self.has_depth_camera_info:
             depth_resized = cv2.resize(
-                depth_filtered, (self.width, self.height), interpolation=cv2.INTER_NEAREST
+                depth_filtered,
+                (self.width, self.height),
+                interpolation=cv2.INTER_NEAREST,
             )
 
             # Calculate scaling factors
@@ -305,9 +331,9 @@ class ROSBridge(BaseBridge):
                 data["depth"] = self.depth.copy()
                 self.depth = None
                 if "timestamp" not in data.keys():
-                  data["timestamp"] = self.depth_timestamp
-                  self.depth_timestamp = None
-                    
+                    data["timestamp"] = self.depth_timestamp
+                    self.depth_timestamp = None
+
             else:
                 # self.node.get_logger().warn("Depth data not available")
                 return None

@@ -12,27 +12,31 @@ from torchvision.models.segmentation import (
 )
 from torchvision import transforms
 
-from .semantic_segmentation_base import SemanticSegmentationBase, SemanticSegmentationBaseConfig
+from .semantic_segmentation_base import (
+    SemanticSegmentationBase,
+    SemanticSegmentationBaseConfig,
+)
 from .semantic_types import SemanticFeatureType
 from .semantic_utils import SemanticDatasetType, get_labels_color_map, labels_to_image
 
+
 @dataclass
 class SemanticSegmentationDeepLabV3Config(SemanticSegmentationBaseConfig):
-  """
-      Configuration class for Semantic Segmentation with DeepLabV3
-  """
-  
-  encoder_name: str = "resnet50"
-  """ Encoder name for DeepLabV3 """
-  
-  semantic_dataset_type: SemanticDatasetType = "voc"
-  """ Semantic dataset type """
+    """
+    Configuration class for Semantic Segmentation with DeepLabV3
+    """
 
-  semantic_feature_type: SemanticFeatureType = "probability_vector"
-  """ Semantic feature type """
+    encoder_name: str = "resnet50"
+    """ Encoder name for DeepLabV3 """
 
-  model_path: str = ""
-  """ Path to load a pre-trained model """
+    semantic_dataset_type: SemanticDatasetType = "voc"
+    """ Semantic dataset type """
+
+    semantic_feature_type: SemanticFeatureType = "probability_vector"
+    """ Semantic feature type """
+
+    model_path: str = ""
+    """ Path to load a pre-trained model """
 
 
 class SemanticSegmentationDeepLabV3(SemanticSegmentationBase):
@@ -68,12 +72,13 @@ class SemanticSegmentationDeepLabV3(SemanticSegmentationBase):
         self,
         cfg: SemanticSegmentationDeepLabV3Config,
     ):
-        device = self.init_device(cfg.device)
+        self.device = self.init_device(cfg.device)
 
         self.cfg = cfg
 
         model, transform = self.init_model(
-            device, self.cfg.encoder_name, self.cfg.model_path, self.cfg.semantic_dataset_type
+            self.cfg.encoder_name,
+            self.cfg.model_path,
         )
 
         self.semantics_color_map = get_labels_color_map(self.cfg.semantic_dataset_type)
@@ -85,9 +90,9 @@ class SemanticSegmentationDeepLabV3(SemanticSegmentationBase):
                 f"Semantic feature type {self.cfg.semantic_feature_type} is not supported for {self.__class__.__name__}"
             )
 
-        super().__init__(model, transform, device, self.cfg.semantic_feature_type)
+        super().__init__(model, transform, self.device, self.cfg.semantic_feature_type)
 
-    def init_model(self, device, encoder_name, model_path):
+    def init_model(self, encoder_name, model_path):
         if encoder_name not in self.model_configs:
             raise ValueError(
                 f"Encoder name {encoder_name} is not supported for {self.__class__.__name__}"
@@ -97,7 +102,7 @@ class SemanticSegmentationDeepLabV3(SemanticSegmentationBase):
         )
         if model_path != "":  # Load pre-trained models
             model.load_state_dict(torch.load(model_path, map_location="cpu"))
-        model = model.to(device).eval()
+        model = model.to(self.device).eval()
         transform = self.model_configs[encoder_name]["weights"].transforms()
         return model, transform
 
@@ -141,19 +146,33 @@ class SemanticSegmentationDeepLabV3(SemanticSegmentationBase):
 
         return self.semantics
 
-    def to_rgb(self, semantics, bgr=False, feature_type=None, overlay=False,rgb_image=None):
-        
-        semantic_feature_type = feature_type if feature_type is not None else self.semantic_feature_type
+    def to_rgb(
+        self, semantics, bgr=False, feature_type=None, overlay=False, rgb_image=None
+    ):
+
+        semantic_feature_type = (
+            feature_type if feature_type is not None else self.semantic_feature_type
+        )
 
         if semantic_feature_type == "label":
-            return labels_to_image(semantics, self.semantics_color_map, bgr=bgr, overlay=overlay, rgb_image=rgb_image)
+            return labels_to_image(
+                semantics,
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
         elif semantic_feature_type == "probability_vector":
             return labels_to_image(
-                np.argmax(semantics, axis=-1), self.semantics_color_map, bgr=bgr, overlay=overlay, rgb_image=rgb_image)
+                np.argmax(semantics, axis=-1),
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
 
     def get_semantic_dimensions(self):
         if self.semantic_feature_type == "label":
             return 1
         elif self.semantic_feature_type == "probability_vector":
             return self.semantics_color_map.shape[0]
-        

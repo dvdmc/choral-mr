@@ -18,12 +18,12 @@
     # Define accident rates for different traversability levels
     # These values represent accidents per meter (e.g., from manufacturer data)
     lambda_good_trav: 0.00001 # Example: 1 accident every 100000m
-    lambda_bad_trav: 5.0 # Example: 5 accident every 1m / or 1 accident every 0.2m
+    lambda_bad_trav: 0.1 # Example: 5 accident every 1m / or 1 accident every 0.2m
 
     # Define parameters for the logistic function in the collision cost
     # These values would be determined experimentally or from manufacturer data
-    gamma_collision: 20.0 # Controls the decay rate. Prob is very low at 1m
-    d_05_collision: 0.1 # Distance at which the rate is 0.5 (high accident likelihood). We set it to 0.5m
+    gamma_collision: 10.0 # Controls the decay rate. Prob is very low at 1m
+    d_05_collision: 0.3 # Distance at which the rate is 0.5 (high accident likelihood). We set it to 0.3m
 
     solver_seconds: 120
 

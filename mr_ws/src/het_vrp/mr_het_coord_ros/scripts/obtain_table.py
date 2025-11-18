@@ -15,21 +15,31 @@ def agent_type_name(t):
     else:
         return t
 
+def method_type_name(t):
+    t = str(t)
+    if "het" in t:
+        return "Het"
+    elif "hom" in t:
+        return "Hom"
+    else:
+        return t
+    
 df["agent_type_norm"] = df["agent_type"].apply(agent_type_name)
+df["method_norm"] = df["method"].apply(method_type_name)
 
 # Create vehicle configuration string per experiment and method ===
 vehicle_config_df = (
-    df.groupby(["exp_id", "method"])
+    df.groupby(["exp_id", "method_norm"])
       .apply(lambda g: ",".join(g.sort_values("agent_id")["agent_type_norm"]))
       .reset_index(name="vehicle_config")
 )
-df = df.merge(vehicle_config_df, on=["exp_id", "method"], how="left")
+df = df.merge(vehicle_config_df, on=["exp_id", "method_norm"], how="left")
 
 agg_cols = ["total_cost", "distance", "time", "traversability", "collision", "safety"]
 
 # Aggregate mean, std, min, max
 summary = (
-    df.groupby(["map", "method", "vehicle_config"])[agg_cols]
+    df.groupby(["map", "method_norm", "vehicle_config"])[agg_cols]
       .agg(["mean", "std", "min", "max"])
       .reset_index()
 )
@@ -48,13 +58,13 @@ for m in agg_cols:
     )
 
 # Keep only identifiers + latex-formatted metrics
-latex_cols = ["map", "method", "vehicle_config"] + [f"{m}_latex" for m in agg_cols]
+latex_cols = ["map", "method_norm", "vehicle_config"] + [f"{m}_latex" for m in agg_cols]
 latex_df = summary[latex_cols]
 
 # Rename columns for readability
 latex_df = latex_df.rename(columns={
     "map": "Map",
-    "method": "Method",
+    "method_norm": "Method",
     "vehicle_config": "Robots",
     "total_cost_latex": "Cost",
     "distance_latex": "Dist.",

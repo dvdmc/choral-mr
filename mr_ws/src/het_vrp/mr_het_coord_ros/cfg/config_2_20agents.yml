@@ -14,7 +14,7 @@
       - 1.0
       - 0.5
 
-    cost_scaling: 2.0
+    cost_scaling: 20.0
 
     # For the application of the following costs, check base_planner.hpp
     

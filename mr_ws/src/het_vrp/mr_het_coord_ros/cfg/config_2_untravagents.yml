@@ -21,7 +21,7 @@
     # Define accident rates for different traversability levels
     # These values represent accidents per meter (e.g., from manufacturer data)
     lambda_good_trav: 0.00001 # Example: 1 accident every 100000m
-    lambda_bad_trav: 0.05 # Example: 1 accident every 50m / or 1 accident every 10m
+    lambda_bad_trav: 5.0 # Example: 1 accident every 50m / or 1 accident every 10m
     # lambda_bad_trav: 5.0 # Example: 5 accident every 1m / or 1 accident every 0.2m
 
     # Define parameters for the logistic function in the collision cost

@@ -541,20 +541,20 @@ void MRVRPNode::logResultsCSV(const ResultExp &result) const {
   // Loop over agents
   for (int k = 0; k < num_vehicles_; ++k) {
     writer.writeRow(
-        // --- Experiment metadata ---
+        // Experiment metadata
         result.exp_id, result.method, result.map, result.rnd_seed,
 
-        // --- Agent info ---
+        // Agent info
         k + 1, // agent_id
         agent_types_str_[k],
         velocities_[k],
 
-        // --- Performance metrics ---
+        // Performance metrics
         result.route_total_cost[k], result.route_cost_distance[k],
         result.route_cost_time[k], result.route_cost_traversability[k],
         result.route_cost_collision[k], result.route_cost_safety[k],
 
-        // --- Solver parameters ---
+        // Solver parameters
         step_size_, cost_scaling_, lambda_good_trav_, lambda_bad_trav_,
         gamma_collision_, d_05_collision_, solver_seconds_);
   }

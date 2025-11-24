@@ -114,8 +114,8 @@ Now, make sure to being sourced in the venv and rebuild the ws:
 
 ```bash
 source .env-sem/bin/activate
-python3 -m pip install colcon-common-extensions --symlink-install
-python3 -m colcon build
+python3 -m pip install colcon-common-extensions
+python3 -m colcon build --symlink-install
 source install/setup.bash
 ```
 

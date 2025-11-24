@@ -114,7 +114,9 @@ Now, make sure to being sourced in the venv and rebuild the ws:
 
 ```bash
 source .env-sem/bin/activate
-colcon build --symlink-install
+python3 -m pip install colcon-common-extensions --symlink-install
+python3 -m colcon build
+source install/setup.bash
 ```
 
 NOTE: the last step is a [known issue](https://github.com/ros2/ros2/issues/1094#issuecomment-2897480048) in colcon & ROS 2 when running venvs and we hope to solve it in the future.

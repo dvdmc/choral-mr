@@ -103,7 +103,7 @@ The ground station will run the positioning system for the motion capture system
 
 ```bash
 cd mr_ws
-python3 -m venv .env-sem
+python3 -m venv .env-sem --system-site-packages
 source .env-sem/bin/activate
 pip install torch torchvision torchaudio # Make sure the CUDA version is installed
 cd src/sensors_tools
@@ -114,9 +114,7 @@ Now, make sure to being sourced in the venv and rebuild the ws:
 
 ```bash
 source .env-sem/bin/activate
-pip install rospkg lark
-pip install -U colcon-common-extensions
-python3 -m colcon build --symlink-install
+colcon build --symlink-install
 ```
 
 NOTE: the last step is a [known issue](https://github.com/ros2/ros2/issues/1094#issuecomment-2897480048) in colcon & ROS 2 when running venvs and we hope to solve it in the future.

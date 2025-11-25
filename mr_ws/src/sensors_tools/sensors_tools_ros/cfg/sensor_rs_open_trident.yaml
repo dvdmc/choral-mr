@@ -3,7 +3,7 @@
 
     use_sim_time: true
 
-    frequency: 10.0 # Frequency of the sensor in Hz. -1 means that we are using a service instead of a timer
+    frequency: 1.0 # Frequency of the sensor in Hz. -1 means that we are using a service instead of a timer
     stride: 8 # Stride of the sensor for generating the pointcloud
     max_depth: 4.5 # Maximum distance of the sensor
     publish_freespace_point_cloud: true
@@ -28,5 +28,6 @@
     inference:
       semantic_dataset_type: "custom_set" # Number of classes 4 MAKE SURE TO SET IN MAP!
       custom_set_labels: ['none','floor','bycicle','cables']
+      sam_checkpoint_path: "/root/checkpoints/Trident/sam_vit_b_01ec64.pth"
       # custom_set_labels: "none,ceiling,floor,wall,table,human,door"
       # Colors for reference: black, gray, pink-red, clear blue, brown, 

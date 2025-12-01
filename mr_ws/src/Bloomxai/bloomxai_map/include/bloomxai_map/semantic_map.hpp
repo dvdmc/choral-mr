@@ -8,6 +8,8 @@
 namespace Bloomxai {
 using namespace Bonxai;
 
+using VSemantics = Eigen::VectorXf;
+
 template <class Functor>
 void RayIterator(const CoordT& key_origin, const CoordT& key_end, const Functor& func);
 
@@ -19,20 +21,125 @@ inline void ComputeRay(const CoordT& key_origin, const CoordT& key_end, std::vec
   });
 }
 
+struct SemCellT {
+  int32_t update_id : 4;
+  int32_t occ_prob_log : 28;
+  int32_t sem_dim;
+  VSemantics semantics;  // probability vector, features, etc.
+
+  SemCellT()
+      : update_id(0),
+        occ_prob_log(-1),
+        sem_dim(0) {}
+
+  // Calculate serialized size in bytes for serialization
+  [[nodiscard]] size_t size() const {
+    if (semantics.size() == 0) {
+      throw std::runtime_error("Used size() on an empty SemCellT.");
+    }
+    return sizeof(int32_t)                        // update_id + occ_prob_log (packed into 4 bytes)
+           + sizeof(int32_t)                      // sem_dim (4 bytes)
+           + (semantics.size() * sizeof(float));  // semantics data
+  }
+};
+
+class BaseSemanticOperator {
+ public:
+  int sem_dim;
+
+  BaseSemanticOperator(int sem_dim)
+      : sem_dim(sem_dim) {}
+  virtual ~BaseSemanticOperator() = default;
+
+  // Initialize a new cell (prior)
+  virtual void initialize(SemCellT& cell) const = 0;
+
+  // Update a cell given a hit measurement
+  virtual void integrateHit(SemCellT& cell, const SemCellT& measurement) const = 0;
+
+  // Update a cell given a miss (ray passing through free space)
+  virtual void integrateMiss(SemCellT& cell) const = 0;
+};
+
+class ProbabilitySemanticOperator : public BaseSemanticOperator {
+  const VSemantics reg_probs;
+  float alpha_reg;  // Larger means more regularization
+
+  float clamp_min_prob = 0.12f;
+  float clamp_max_prob = 0.97f;
+
+ public:
+  ProbabilitySemanticOperator(int sem_dim, float regularization)
+      : BaseSemanticOperator(sem_dim),
+        alpha_reg(regularization),
+        reg_probs(VSemantics::Constant(sem_dim, regularization)) {};
+
+  virtual void initialize(SemCellT& cell) const override {
+    cell.sem_dim = sem_dim;
+    cell.semantics.resize(sem_dim);
+    cell.semantics.setConstant(1.0f / sem_dim);
+  }
+
+  virtual void integrateHit(SemCellT& cell, const SemCellT& measurement) const override {
+    VSemantics regularized = regularizeSemantics(measurement);
+    cell.semantics *= regularized;
+    // Clamp TODO(anonym): Check if clamping causes artifacts
+    cell.semantics.cwiseMax(clamp_min_prob).cwiseMin(clamp_max_prob);
+    // Normalize to sum to one
+    cell.semantics /= cell.semantics.sum();
+  }
+
+  virtual void integrateMiss(SemCellT& cell) const override {
+    // Simply add uncertainty to the actual cell
+    VSemantics regularized = regularizeSemantics(cell);
+    cell.semantics *= regularized;
+    // Clamp TODO(anonym): Check if clamping causes artifacts
+    cell.semantics.cwiseMax(clamp_min_prob).cwiseMin(clamp_max_prob);
+    // Normalize to sum to one
+    cell.semantics /= cell.semantics.sum();
+  }
+
+  VSemantics regularizeSemantics(const SemCellT& cell) const {
+    return (1 - alpha_reg) * cell.semantics + alpha_reg * reg_probs;
+  }
+
+  int argmax(const SemCellT& cell) const {
+    if (cell.semantics.size() == 0)
+      return 0;  // Handle empty case
+    int maxVal = cell.semantics[0];
+    int maxIndex = 0;
+    for (int i = 1; i < cell.semantics.size(); i++) {
+      if (cell.semantics[i] > maxVal) {
+        maxVal = cell.semantics[i];
+        maxIndex = i;
+      }
+    }
+    return maxIndex;
+  }
+
+};
+
 /**
  * @brief The SemanticMap works similarly to ProbabilisticMap but includes
  * different fusion methods for semantic information. Semantics might be:
  * probability vector for classes, features, or labels.
  */
 class SemanticMap {
+ public:
+  enum class SemanticMapType {
+    kProbabilities,
+    kFeatures,
+    kLabels,
+  };
+
  private:
   int _sem_dim;
   double _resolution;
+  SemanticMapType _type;
+  std::unique_ptr<BaseSemanticOperator> _integrator;
 
  public:
   using Vector3D = Eigen::Vector3d;
-  using VSemanticProb = Eigen::VectorXf;
-  using VSemanticLogOds = Eigen::VectorXi;
 
   static constexpr float kFixedPrecision = 1e6f;
   static constexpr float kEps = 1e-9f;
@@ -50,78 +157,12 @@ class SemanticMap {
     return (1.0 - 1.0 / (1.0 + std::exp(logods)));
   }
 
-  // TODO(anonym): Check if this causes too much artifacts.
-  [[nodiscard]] VSemanticLogOds vlogods(const VSemanticProb& probs) {
-    VSemanticLogOds vec(_sem_dim);
-    for (int i = 0; i < _sem_dim; ++i) {
-      vec[i] = logods(probs[i]);
-    }
-    return vec;
-  }
-
-  [[nodiscard]] VSemanticProb vprob(const VSemanticLogOds& logodds_vec) {
-    VSemanticProb vec(_sem_dim);
-    for (int i = 0; i < _sem_dim; ++i) {
-      vec[i] = prob(logodds_vec[i]);
-    }
-    return vec;
-  }
-
   static const int32_t UnknownProbability;
-  const float UnknownSemProbs;
-  const float UnknownSemLogOdds;
-
-  struct SemCellT {
-    // variable used to check if a cell was already updated in this loop
-    int32_t update_id : 4;
-    // the probability of the cell to be occupied
-    int32_t occ_prob_log : 28;
-
-    // We store the sem_dim for serialization checks
-    int32_t sem_dim;
-
-    VSemanticLogOds sem_prob_log;
-
-    SemCellT()
-        : update_id(0),
-          occ_prob_log(UnknownProbability),
-          sem_dim(0) {};
-
-    void init(int _sem_dim, int _value) {
-      sem_dim = _sem_dim;
-      sem_prob_log.resize(_sem_dim);
-      sem_prob_log.setConstant(_value);
-    }
-
-    [[nodiscard]] int argmax(const VSemanticLogOds& vec) {
-      if (vec.size() == 0)
-        return 0;  // Handle empty case
-      int maxVal = vec[0];
-      int maxIndex = 0;
-      for (int i = 1; i < vec.size(); i++) {
-        if (vec[i] > maxVal) {
-          maxVal = vec[i];
-          maxIndex = i;
-        }
-      }
-      return maxIndex;
-    }
-
-    // Calculate serialized size in bytes for serialization
-    [[nodiscard]] size_t size() const {
-      if (sem_prob_log.size() == 0) {
-        throw std::runtime_error("Used size() on an empty SemCellT.");
-      }
-      return sizeof(int32_t)    // update_id + occ_prob_log (packed into 4 bytes)
-             + sizeof(int32_t)  // sem_dim (4 bytes)
-             + (sem_prob_log.size() * sizeof(int));  // sem_prob_log data
-    }
-  };
 
   SemCellT* ensureCellInitalized(SemCellT* cell) {
-    if (cell->sem_prob_log.size() == 0) {
+    if (cell->semantics.size() == 0) {
       // Uninformed prior initialization
-      cell->init(_sem_dim, UnknownSemLogOdds);
+      _integrator->initialize(*cell);
     }
     return cell;
   }
@@ -136,17 +177,10 @@ class SemanticMap {
 
     int32_t occupancy_threshold_log = logods(0.5f);
 
-    // Semantics
-    VSemanticProb prob_reg;
-    float alpha_reg = 0.7f;
-    int32_t clamp_min_sem_log = logods(0.12f);
-    int32_t clamp_max_sem_log = logods(0.97f);
-
-    Options(int sem_dim, float value)
-        : prob_reg(VSemanticProb(sem_dim).setConstant(value)) {}
+    Options(int sem_dim, float value) {}
   };
 
-  SemanticMap(double resolution, int sem_dim);
+  SemanticMap(double resolution, int sem_dim, std::unique_ptr<BaseSemanticOperator> integrator);
 
   [[nodiscard]] VoxelGrid<SemCellT>& grid();
 
@@ -173,20 +207,20 @@ class SemanticMap {
   template <typename PointT, typename AllocatorP, typename AllocatorSem>
   void insertPointCloud(
       const std::vector<PointT, AllocatorP>& points,
-      const std::vector<VSemanticProb, AllocatorSem>& semantics, const PointT& origin,
+      const std::vector<VSemantics, AllocatorSem>& semantics, const PointT& origin,
       double max_range);
 
   // This function is usually called by insertPointCloud
   // We expose it here to add more control to the user.
   // Once finished adding points, you must call updateFreeCells()
-  void addHitPoint(const Vector3D& point, const VSemanticProb& semantics);
+  void addHitPoint(const Vector3D& point, const VSemantics& semantics);
 
   // This function is usually called by insertPointCloud
   // We expose it here to add more control to the user.
   // Once finished adding points, you must call updateFreeCells()
   void addMissPoint(const Vector3D& point);
 
-  VSemanticProb regularizeSemantic(const VSemanticProb& input) const;
+  VSemantics regularizeSemantic(const VSemantics& input) const;
 
   [[nodiscard]] bool isOccupied(const Bonxai::CoordT& coord) const;
 
@@ -194,7 +228,9 @@ class SemanticMap {
 
   [[nodiscard]] bool isFree(const Bonxai::CoordT& coord) const;
 
-  double getResolution() const { return _resolution; }
+  double getResolution() const {
+    return _resolution;
+  }
 
   void getOccupiedVoxels(std::vector<Bonxai::CoordT>& coords);
 
@@ -207,11 +243,9 @@ class SemanticMap {
   void deserializeFromFile(const std::string& filename);
 
   std::vector<std::vector<int>> generate2DGridMap(
-    const std::vector<float>& min,
-    const std::vector<float>& max,
-    const std::vector<int>& map_size,
-    const std::vector<int>& problematic_classes,
-    float th_z) const;
+      const std::vector<float>& min, const std::vector<float>& max,
+      const std::vector<int>& map_size, const std::vector<int>& problematic_classes,
+      float th_z) const;
 
   template <typename PointT>
   void getOccupiedVoxels(std::vector<PointT>& points) {
@@ -225,7 +259,7 @@ class SemanticMap {
   }
 
   void getMapLimits(std::vector<float>& min, std::vector<float>& max) const;
-  
+
   std::vector<int> getMapXYSize() const;
 
   template <typename PointT>
@@ -257,8 +291,7 @@ class SemanticMap {
 
   // We reimplement the serialization functions to use SemCellT dynamic size
 
-  inline void Serialize(
-      std::ofstream& out, const VoxelGrid<SemCellT>& grid) const;
+  inline void Serialize(std::ofstream& out, const VoxelGrid<SemCellT>& grid) const;
 
   inline VoxelGrid<SemCellT> Deserialize(
       std::istream& input, const HeaderInfo& info, size_t sem_dim);
@@ -269,11 +302,11 @@ class SemanticMap {
     out.write(reinterpret_cast<const char*>(&packed), sizeof(int32_t));
 
     // Write sem_dim
-    int32_t sem_dim = cell.sem_prob_log.size();
+    int32_t sem_dim = cell.semantics.size();
     out.write(reinterpret_cast<const char*>(&sem_dim), sizeof(int32_t));
 
-    // Write sem_prob_log data
-    out.write(reinterpret_cast<const char*>(cell.sem_prob_log.data()), sizeof(int32_t) * sem_dim);
+    // Write semantics data
+    out.write(reinterpret_cast<const char*>(cell.semantics.data()), sizeof(float) * sem_dim);
   }
 
   SemCellT ReadSemCellT(std::istream& input, int sem_dim) {
@@ -296,8 +329,8 @@ class SemanticMap {
     out.sem_dim = read_sem_dim;
 
     // Step 3: Read vector
-    out.sem_prob_log.resize(sem_dim);
-    input.read(reinterpret_cast<char*>(out.sem_prob_log.data()), sizeof(int32_t) * sem_dim);
+    out.semantics.resize(sem_dim);
+    input.read(reinterpret_cast<char*>(out.semantics.data()), sizeof(float) * sem_dim);
 
     return out;
   }
@@ -305,8 +338,7 @@ class SemanticMap {
 
 //--------------------------------------------------
 
-inline void SemanticMap::Serialize(
-    std::ofstream& out, const VoxelGrid<SemCellT>& grid) const {
+inline void SemanticMap::Serialize(std::ofstream& out, const VoxelGrid<SemCellT>& grid) const {
   char header[256];
   std::string type_name = details::demangle(typeid(SemCellT).name());
 
@@ -351,18 +383,15 @@ inline void SemanticMap::serializeToFile(const std::string& filename) const {
   out.close();
 }
 
-inline VoxelGrid<SemanticMap::SemCellT> SemanticMap::Deserialize(std::istream& input, const HeaderInfo& info, size_t sem_dim) {
+inline VoxelGrid<SemCellT> SemanticMap::Deserialize(
+    std::istream& input, const HeaderInfo& info, size_t sem_dim) {
   std::string type_name = details::demangle(typeid(SemCellT).name());
 
   VoxelGrid<SemCellT> grid(info.resolution, info.inner_bits, info.leaf_bits);
   uint32_t root_count = Read<uint32_t>(input);
 
   for (size_t r = 0; r < root_count; ++r) {
-    CoordT root_coord {
-      Read<int32_t>(input),
-      Read<int32_t>(input),
-      Read<int32_t>(input)
-    };
+    CoordT root_coord{Read<int32_t>(input), Read<int32_t>(input), Read<int32_t>(input)};
 
     auto inner_it = grid.rootMap().try_emplace(root_coord, info.inner_bits).first;
     auto& inner_grid = inner_it->second;
@@ -402,7 +431,7 @@ inline void SemanticMap::deserializeFromFile(const std::string& filename) {
 template <typename PointT, typename AllocatorP, typename AllocatorSem>
 inline void SemanticMap::insertPointCloud(
     const std::vector<PointT, AllocatorP>& points,
-    const std::vector<SemanticMap::VSemanticProb, AllocatorSem>& semantics, const PointT& origin,
+    const std::vector<VSemantics, AllocatorSem>& semantics, const PointT& origin,
     double max_range) {
   const auto from = ConvertPoint<Vector3D>(origin);
   const double max_range_sqr = max_range * max_range;

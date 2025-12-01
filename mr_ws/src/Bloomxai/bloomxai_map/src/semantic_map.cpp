@@ -16,6 +16,8 @@ SemanticMap::SemanticMap(double resolution, int sem_dim)
       _resolution(resolution),
       UnknownSemProbs(1.0f / sem_dim),
       UnknownSemLogOdds(SemanticMap::logods(UnknownSemProbs)),
+      UnknownLabels(0),
+      UnknownFeatures(0),
       _options(sem_dim, UnknownSemProbs),
       _grid(resolution),
       _accessor(_grid.createAccessor()) {}
@@ -32,21 +34,16 @@ void SemanticMap::setOptions(const Options& options) {
   _options = options;
 }
 
-void SemanticMap::addHitPoint(const Vector3D& point, const SemanticMap::VSemanticProb& semantics) {
+void SemanticMap::addHitPoint(const Vector3D& point, const SemanticMap::VSemantics& semantics) {
   const auto coord = _grid.posToCoord(point);
   SemCellT* cell = SemanticMap::ensureCellInitalized(_accessor.value(coord, true));
 
-  SemanticMap::VSemanticLogOds sem_log_odds =
-      SemanticMap::vlogods(SemanticMap::regularizeSemantic(semantics));
-
-  // TODO(dvdmc): Check if only updating once causes artifacts
+  // TODO(anonym): Check if only updating once causes artifacts
   if (cell->update_id != _update_count) {
     cell->occ_prob_log =
         std::max(cell->occ_prob_log + _options.prob_hit_log, _options.clamp_min_log);
 
-    cell->sem_prob_log = cell->sem_prob_log + sem_log_odds;
-    // TODO(dvdmc): Check if clamping causes artifacts
-    cell->sem_prob_log.cwiseMax(_options.clamp_min_sem_log).cwiseMin(_options.clamp_max_sem_log);
+    integrator_->integrateHit(*cell, semantics);
 
     cell->update_id = _update_count;
     _hit_coords.push_back(coord);
@@ -61,18 +58,11 @@ void SemanticMap::addMissPoint(const Vector3D& point) {
     cell->occ_prob_log =
         std::max(cell->occ_prob_log + _options.prob_miss_log, _options.clamp_min_log);
 
-    // Make the semantics more uncertain
-    cell->sem_prob_log = SemanticMap::vlogods(
-        SemanticMap::regularizeSemantic(SemanticMap::vprob(cell->sem_prob_log)));
+    integrator_->integrateMiss(*cell);
 
     cell->update_id = _update_count;
     _miss_coords.push_back(coord);
   }
-}
-
-SemanticMap::VSemanticProb SemanticMap::regularizeSemantic(
-    const SemanticMap::VSemanticProb& input) const {
-  return (1 - _options.alpha_reg) * input + _options.alpha_reg * _options.prob_reg;
 }
 
 bool SemanticMap::isOccupied(const CoordT& coord) const {

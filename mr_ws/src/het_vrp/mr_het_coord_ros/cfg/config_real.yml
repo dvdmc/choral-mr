@@ -3,3 +3,5 @@
     step_size: 1.0
     map_name: real
     paths_filename: "none"
+
+    tasks_filename: "/root/mr_ws/tasks_real.json"

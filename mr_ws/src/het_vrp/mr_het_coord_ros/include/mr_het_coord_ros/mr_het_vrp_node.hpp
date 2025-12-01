@@ -64,6 +64,7 @@ class MRVRPNode : public rclcpp::Node {
 
   std::string paths_filename_;
   std::string results_path_;
+  std::string tasks_filename_;
   std::shared_ptr<GridMap> map_;
   std::vector<std::vector<float>> tasks_;
   std::shared_ptr<BasePlanner> path_planner_;
@@ -71,6 +72,8 @@ class MRVRPNode : public rclcpp::Node {
   std::vector<std::vector<std::vector<float>>> astar_tree_;
 
   void readROSParameters();
+
+  std::vector<std::vector<float>> readTasksFromFile(std::string const &filename) const;
 
   void mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg);
 

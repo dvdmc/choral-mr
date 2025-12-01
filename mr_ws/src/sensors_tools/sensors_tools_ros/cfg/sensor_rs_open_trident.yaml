@@ -27,7 +27,7 @@
     semantic_segmentation_type: 'trident'
     inference:
       semantic_dataset_type: "custom_set" # Number of classes 4 MAKE SURE TO SET IN MAP!
-      custom_set_labels: ['none','floor','bycicle','cables']
+      custom_set_labels: ['none','floor','cables','stones'] # cardboard, debris, cables, stones, 
       sam_checkpoint_path: "/root/checkpoints/Trident/sam_vit_b_01ec64.pth"
       # custom_set_labels: "none,ceiling,floor,wall,table,human,door"
       # Colors for reference: black, gray, pink-red, clear blue, brown, 

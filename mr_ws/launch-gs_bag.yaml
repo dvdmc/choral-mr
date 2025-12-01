@@ -7,15 +7,19 @@ windows:
   - main:
       layout: tiled
       panes:
-        - echo "ros2 bag play /root/bags/test1 --clock"
+        - echo "ros2 bag play /root/bags/beta3.bag --clock"
         - echo "ros2 launch mr_het_coord_ros mr_coord_real.launch num_agents:=2 map:=real"
+        
   - visualization:
       layout: tiled
       panes:
-        - ros2 run rviz2 rviz2 -d ./src/Bloomxai/bloomxai_ros/config/rviz.rviz --ros-args -p use_sim_time:=true
+        - ros2 run rviz2 rviz2 -d ./config/ground_station/real.rviz 
+            --ros-args -p use_sim_time:=true
+        #- ros2 topic pub /visualization_marker visualization_msgs/msg/Marker "{header: { frame_id: 'map' }, ns: 'arena_mesh', id: 0, type: 10,action: 0, pose: {position: { x: 0.0, y: 0.0, z: 0.0 }, orientation: { x: 0.0, y: 0.0, z: 0.0, w: 1.0 } },scale: { x: 1.0, y: 1.0, z: 1.0 }, mesh_resource: 'file:///root/mr_ws/meshes/arena.dae',mesh_use_embedded_materials: true}"
+
   - mapping:
       layout: tiled
       panes:
-        - source .het/bin/activate && ros2 launch sensors_tools_ros semantic_sensor_bag.launch.xml
-        - ros2 launch bloomxai_ros bonxai_mapping_bag.launch.xml
-        - ros2 run image_transport republish --ros-args -p in_transport:=compressed -p out_transport:=raw --remap in/compressed:=/camera/camera/color/image_raw/compressed --remap out:=/camera/camera/color/image_raw
+        - sleep 10; source .venv-sem/bin/activate && source install/setup.bash && ros2 launch sensors_tools_ros semantic_sensor_bag.launch.xml
+        - sleep 10; source install/setup.bash && ros2 launch bloomxai_ros bonxai_mapping.launch.xml
+        - source install/setup.bash && ros2 launch sensors_tools_ros republish_compressed.launch.xml override_file:=config/ground_station/qos_override.yaml

@@ -1,9 +1,9 @@
 import colorsys
 import numpy as np
+from typing import List, Tuple
 
-
-def get_generic_color_map(num_classes):
-    """Generates a color map for generic semantic segmentation
+def get_generic_color_map(num_classes: int) -> np.ndarray:
+    """Generates a color map for generic semantic segmentation.
 
     Args:
         num_classes (int): Number of classes
@@ -14,22 +14,53 @@ def get_generic_color_map(num_classes):
     return generate_hsv_color_map(num_classes)
 
 
-def generate_hsv_color_map(n: int, s=0.65, v=0.95):
-    """Generates `n` visually distinct RGB colors using HSV color space.
+def generate_hsv_color_map(n: int, s: float = 0.65, v: float = 0.95) -> np.ndarray:
+    """Generates `n` visually distinct RGB colors using HSV color space,
+    reserving the first color (index 0) for black (background).
 
     Args:
-        n (int): Number of colors to generate.
-        s (float): Saturation (0-1)
-        v (float): Brightness/Value (0-1)
+        n (int): Total number of colors to generate.
+        s (float): Saturation (0-1). Default is 0.65 for rich color.
+        v (float): Brightness/Value (0-1). Default is 0.95 for bright color.
 
     Returns:
         np.ndarray: (n, 3) array with RGB values in [0, 255]
     """
-    hsv_colors = [(i / n, s, v) for i in range(n)]
-    rgb_colors = [colorsys.hsv_to_rgb(*hsv) for hsv in hsv_colors]
-    rgb_colors = [(int(r * 255), int(g * 255), int(b * 255)) for r, g, b in rgb_colors]
-    return np.array(rgb_colors, dtype=np.uint8)
+    if n == 0:
+        return np.empty((0, 3), dtype=np.uint8)
 
+    # 1. Start with black for index 0 (Background)
+    color_map: List[Tuple[int, int, int]] = [(0, 0, 0)]
+
+    # 2. Determine number of foreground colors needed
+    num_foreground_colors = n - 1
+
+    if num_foreground_colors > 0:
+        # Generate the foreground colors by spacing the Hue (H) evenly
+        # around the color wheel (excluding the black background color)
+        
+        # We start the loop from i=1 to N, effectively using the remaining N-1 slots for color generation
+        hsv_colors = [
+            ((i / num_foreground_colors) % 1.0, s, v)
+            for i in range(num_foreground_colors)
+        ]
+        
+        # Convert the generated HSV tuples to RGB tuples
+        rgb_floats = [colorsys.hsv_to_rgb(*hsv) for hsv in hsv_colors]
+        
+        # Convert the RGB float values [0, 1] to integer values [0, 255]
+        rgb_integers = [
+            (int(r * 255), int(g * 255), int(b * 255)) 
+            for r, g, b in rgb_floats
+        ]
+        
+        color_map.extend(rgb_integers)
+
+    # 3. Ensure the final map size matches the requested number of classes
+    if len(color_map) > n:
+        color_map = color_map[:n]
+    
+    return np.array(color_map, dtype=np.uint8)
 
 def get_voc_color_map():
     """Load the mapping that associates pascal VOC classes with label colors

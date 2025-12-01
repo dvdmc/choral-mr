@@ -221,10 +221,10 @@ bool BloomxaiServer::sendGridMap() const {
   std::vector<float> min, max;
   std::vector<int> map_size;
   std::vector<std::vector<int>> matrix;
-  std::vector<int> problematic_classes = {3};
-  std::vector<std::vector<float>> tasks = {{0, -1},      {-1.5, -2.3}, {-1.5, -4.5}, {0.22, -2.22},
-                                           {0.16, -4.2}, {1.27, -1},   {1.93, -3.3}, {1.75, -4.24}};
-  double th_z = 0.33;
+  std::vector<int> problematic_classes = {2,3};
+  // std::vector<std::vector<float>> tasks = {{0, -1},      {-1.5, -2.3}, {-1.5, -4.5}, {0.22, -2.22},
+  //                                          {0.16, -4.2}, {1.27, -1},   {1.93, -3.3}, {1.75, -4.24}};
+  double th_z = 0.8;
 
   {
   std::lock_guard<std::mutex> lock(bloomxai_mutex_);
@@ -240,21 +240,21 @@ bool BloomxaiServer::sendGridMap() const {
   }
 
   // Add tasks
-  for (int i = 0; i < tasks.size(); i++) {
-    if (tasks[i][0] < min[0] || tasks[i][0] > max[0] || tasks[i][1] < min[1] ||
-        tasks[i][1] > max[1]) {
-      continue;
-    }
-    // std::cout << "Adding task: " << tasks[i][0] << ", " << tasks[i][1] << std::endl;
-    int x = int((tasks[i][0] - min[0]) / bloomxai_->getResolution());
-    int y = int((tasks[i][1] - min[1]) / bloomxai_->getResolution());
-    if (y >= 0 && y < static_cast<int>(matrix.size()) && x >= 0 &&
-        x < static_cast<int>(matrix[y].size())) {
-      matrix[y][x] = 22;
-    } else {
-      std::cerr << "Warning: task index (" << x << ", " << y << ") out of bounds\n";
-    }
-  }
+  // for (int i = 0; i < tasks.size(); i++) {
+  //   if (tasks[i][0] < min[0] || tasks[i][0] > max[0] || tasks[i][1] < min[1] ||
+  //       tasks[i][1] > max[1]) {
+  //     continue;
+  //   }
+  //   // std::cout << "Adding task: " << tasks[i][0] << ", " << tasks[i][1] << std::endl;
+  //   int x = int((tasks[i][0] - min[0]) / bloomxai_->getResolution());
+  //   int y = int((tasks[i][1] - min[1]) / bloomxai_->getResolution());
+  //   if (y >= 0 && y < static_cast<int>(matrix.size()) && x >= 0 &&
+  //       x < static_cast<int>(matrix[y].size())) {
+  //     matrix[y][x] = 22;
+  //   } else {
+  //     std::cerr << "Warning: task index (" << x << ", " << y << ") out of bounds\n";
+  //   }
+  // }
 
   nav_msgs::msg::OccupancyGrid grid_msg;
 

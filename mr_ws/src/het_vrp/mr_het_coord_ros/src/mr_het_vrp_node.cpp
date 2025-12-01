@@ -1,6 +1,7 @@
 #include "mr_het_coord_ros/mr_het_vrp_node.hpp"
 
 MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
+
   readROSParameters();
 
   experiment_id_ = std::chrono::system_clock::now().time_since_epoch().count();
@@ -33,8 +34,16 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
       std::chrono::seconds(1), std::bind(&MRVRPNode::pubTimerCallback, this));
 
   // Get tasks
-  tasks_ = map_->getTasksFromGridMap();
+  if(tasks_filename_ != "none") {
+    tasks_ = readTasksFromFile(tasks_filename_);
+  } else {
+    tasks_ = map_->getTasksFromGridMap();
+  }
   RCLCPP_INFO(this->get_logger(), "Found %ld tasks", tasks_.size());
+  if(tasks_.size() == 0) {
+    RCLCPP_ERROR(this->get_logger(), "No tasks found, shutting down");
+    rclcpp::shutdown();
+  }
   RCLCPP_INFO(this->get_logger(), "Running PRM");
   path_planner_ = std::make_shared<PRM>(*map_, tasks_, step_size_, 5.0f, rng_);
 
@@ -112,11 +121,14 @@ void MRVRPNode::readROSParameters() {
   this->declare_parameter("velocities", std::vector<double>({}));
   this->declare_parameter("agent_types", std::vector<std::string>({}));
 
+  // Mission info
   this->declare_parameter("step_size", 0.0);
 
   this->declare_parameter("map_name", "");
   this->declare_parameter("paths_filename", "none");
   this->declare_parameter("results_path", "none");
+
+  this->declare_parameter("tasks_filename", "none");
 
   // VRP config
   this->declare_parameter("cost_scaling", 5.0f);
@@ -141,6 +153,8 @@ void MRVRPNode::readROSParameters() {
   this->get_parameter("paths_filename", paths_filename_);
   this->get_parameter("results_path", results_path_);
 
+  this->get_parameter("tasks_filename", tasks_filename_);
+
   this->get_parameter("cost_scaling", cost_scaling_);
   this->get_parameter("lambda_good_trav", lambda_good_trav_);
   this->get_parameter("lambda_bad_trav", lambda_bad_trav_);
@@ -164,6 +178,7 @@ void MRVRPNode::readROSParameters() {
   RCLCPP_INFO(this->get_logger(), "Paths filename: %s",
               paths_filename_.c_str());
   RCLCPP_INFO(this->get_logger(), "Results path: %s", results_path_.c_str());
+  RCLCPP_INFO(this->get_logger(), "Tasks filename: %s", tasks_filename_.c_str());
   RCLCPP_INFO(this->get_logger(), "Cost scaling: %.2f", cost_scaling_);
   RCLCPP_INFO(this->get_logger(), "Lambda good trav: %.2f", lambda_good_trav_);
   RCLCPP_INFO(this->get_logger(), "Lambda bad trav: %.2f", lambda_bad_trav_);
@@ -223,6 +238,25 @@ visualization_msgs::msg::MarkerArray MRVRPNode::createTasksMarkers(
     msg.markers.push_back(marker);
   }
   return msg;
+}
+
+std::vector<std::vector<float>> MRVRPNode::readTasksFromFile(std::string const &filename) const
+{
+  // Tasks are a json file with a list of [x,y] positions
+  // Example: {tasks: [[1.0,2.0],[3.0,4.0],...]}
+  std::ifstream file;
+  file.open(filename);
+  if (!file.is_open()) {
+    std::cout << "Couldn't open tasks file at " << filename << "!" << std::endl;
+    rclcpp::shutdown();
+    return {};
+  }
+  std::cout << "Reading tasks from file: " << filename << std::endl;
+  json j;
+  file >> j;
+  std::vector<std::vector<float>> tasks = j["tasks"].get<std::vector<std::vector<float>>>();
+  file.close();
+  return tasks;
 }
 
 visualization_msgs::msg::MarkerArray MRVRPNode::createPathsMarkers(

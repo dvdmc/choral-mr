@@ -19,14 +19,14 @@ republish_depth:
   ros__parameters:
     qos_overrides:
       # Depth compressedDepth (incoming)
-      /drone1/camera/depth/image_rect_raw/compressedDepth:
+      /drone1/camera/aligned_depth_to_color/image_raw/compressedDepth:
         subscription:
           reliability: best_effort
           history: keep_last
           depth: 5
 
       # Depth decompressed (outgoing)
-      /drone1/camera/depth/image_rect_raw_decompressed:
+      /drone1/camera/aligned_depth_to_color/image_raw_decompressed:
         publisher:
           reliability: best_effort
           history: keep_last

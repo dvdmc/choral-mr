@@ -25,7 +25,7 @@
     <param from="$(var override_file)"/>
     <param name="in_transport" value="compressedDepth"/>
     <param name="out_transport" value="raw"/>
-    <remap from="in/compressedDepth" to="/drone1/camera/depth/image_rect_raw/compressedDepth"/>
-    <remap from="out" to="/drone1/camera/depth/image_rect_raw_decompressed"/>
+    <remap from="in/compressedDepth" to="/drone1/camera/aligned_depth_to_color/image_raw/compressedDepth"/>
+    <remap from="out" to="/drone1/camera/aligned_depth_to_color/image_raw_decompressed"/>
   </node>
 </launch>

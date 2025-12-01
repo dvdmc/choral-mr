@@ -21,7 +21,7 @@
       poses_tf: "camera_link"
       rgb_topic: "/drone1/camera/color/image_raw_decompressed"
       camera_info_topic: "/drone1/camera/color/camera_info"
-      depth_topic: "/drone1/camera/depth/image_rect_raw_decompressed"
+      depth_topic: "/drone1/camera/aligned_depth_to_color/image_raw_decompressed"
 
     # Config for inference is in sensors_tools/inference/semantic_segmentation/{semantic_segmentation_type}.py
     semantic_segmentation_type: 'trident'

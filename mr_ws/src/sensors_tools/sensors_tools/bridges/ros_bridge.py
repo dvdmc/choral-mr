@@ -45,7 +45,7 @@ class ROSBridgeConfig(BaseBridgeConfig):
     camera_info_topic: str = "/camera/rgb/camera_info"
     """ Camera info topic """
 
-    depth_topic: str = "/camera/depth/image_raw"
+    depth_topic: str = "/camera/aligned_depth_to_color/image_raw"
     """ Depth topic """
 
     origin_tf: str = "map"

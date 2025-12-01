@@ -1,0 +1,9 @@
+exp_id,method,map,rnd_seed,agent_id,agent_type,velocity,total_cost,distance,time,traversability,collision,safety,step_size,cost_scaling,lambda_good_trav,lambda_bad_trav,gamma_collision,d_05_collision,solver_seconds
+1760382177859965611,maxSpan_hom,forest,42,1,AERIAL,1,26385,90.3125,90.3125,0,0.152115,0.25,2,1e-05,0.1,10,0.3,5
+1760382177859965611,maxSpan_hom,forest,42,2,GROUND,0.5,26825,90.1908,180.382,0.68641,0.68641,0.25,2,1e-05,0.1,10,0.3,5
+1760382177859965611,maxSpan_het,forest,42,1,AERIAL,1,42134,139.402,139.402,0,0.0852484,0.25,2,1e-05,0.1,10,0.3,5
+1760382177859965611,maxSpan_het,forest,42,2,GROUND,0.5,39868,51.9652,103.93,0.218792,0.218792,0.25,2,1e-05,0.1,10,0.3,5
+1760383330417837066,maxSpan_hom,forest,42,1,AERIAL,1,26385,90.3125,90.3125,0,0.152115,0.25,2,1e-05,0.1,10,0.3,5
+1760383330417837066,maxSpan_hom,forest,42,2,GROUND,0.5,26825,90.1908,180.382,0.68641,0.68641,0.25,2,1e-05,0.1,10,0.3,5
+1760383330417837066,maxSpan_het,forest,42,1,AERIAL,1,42134,139.402,139.402,0,0.0852484,0.25,2,1e-05,0.1,10,0.3,5
+1760383330417837066,maxSpan_het,forest,42,2,GROUND,0.5,39868,51.9652,103.93,0.218792,0.218792,0.25,2,1e-05,0.1,10,0.3,5

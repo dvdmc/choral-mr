@@ -31,7 +31,7 @@ windows:
   - bag:
       layout: tiled
       panes:
-        - echo "ros2 bag record /tf /tf_static /drone1/camera/color/image_raw/compressed /drone1/camera/depth/image_rect_raw /drone1/camera/color/camera_info /drone1/camera/color/metadata /drone1/camera/depth/camera_info /drone1/camera/depth/metadata /drone1/self_localization/pose /drone1/self_localization/twist -o /root/bags/beta1.bag"
+        - echo "ros2 bag record /tf /tf_static /drone1/camera/color/image_raw/compressed /drone1/camera/aligned_depth_to_color/image_raw /drone1/camera/color/camera_info /drone1/camera/color/metadata /drone1/camera/aligned_depth_to_color/camera_info /drone1/camera/aligned_depth_to_color/metadata /drone1/self_localization/pose /drone1/self_localization/twist -o /root/bags/beta1.bag"
   <%- end %>
 
   - static_transforms:

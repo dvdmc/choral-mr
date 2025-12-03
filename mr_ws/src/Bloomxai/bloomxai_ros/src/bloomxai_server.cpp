@@ -77,6 +77,7 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
     sem_dim_ = declare_parameter("sem_dim", 100, sem_dim_desc);
     initial_sem_val_ = 1.0f / sem_dim_;
     label_to_rgb_ = getLabelMap(sem_dim_);
+    sim_to_rgb_ = [](float sim) { return jetColor(sim); };
   }
 
   res_ = declare_parameter("resolution", 0.1);
@@ -115,6 +116,56 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   prob_max_desc.floating_point_range.push_back(prob_max_range);
   const double thres_max = declare_parameter("sensor_model.max", 0.97, prob_max_desc);
 
+  // Semantic configs. Add for probabilities and features
+  rcl_interfaces::msg::ParameterDescriptor semantic_type_desc;
+  semantic_type_desc.description = "Semantic type used in the map: probabilities or features";
+  const std::string semantic_type_str =
+      declare_parameter("semantic_type", "probabilities", semantic_type_desc);
+  // Transform string to enum
+  semantic_type_ = semantic_type_map.at(semantic_type_str);
+
+  // Declar the rest of paramters
+  rcl_interfaces::msg::ParameterDescriptor alpha_reg_desc;
+  alpha_reg_desc.description = "Alpha regularization parameter";
+  rcl_interfaces::msg::FloatingPointRange alpha_reg_range;
+  alpha_reg_range.from_value = 0.0;
+  alpha_reg_range.to_value = 1.0;
+  alpha_reg_desc.floating_point_range.push_back(alpha_reg_range);
+  const double alpha_reg = declare_parameter("semantics.alpha_reg", 0.3, alpha_reg_desc);
+
+  rcl_interfaces::msg::ParameterDescriptor sem_prob_min_desc;
+  sem_prob_min_desc.description =
+      "Minimum probability for clamping when dynamically building a map";
+  rcl_interfaces::msg::FloatingPointRange sem_prob_min_range;
+  sem_prob_min_range.from_value = 0.0;
+  sem_prob_min_range.to_value = 1.0;
+  sem_prob_min_desc.floating_point_range.push_back(sem_prob_min_range);
+  const double sem_thres_min = declare_parameter("semantics.min", 0.12, sem_prob_min_desc);
+
+  rcl_interfaces::msg::ParameterDescriptor sem_prob_max_desc;
+  sem_prob_max_desc.description =
+      "Maximum probability for clamping when dynamically building a map";
+  rcl_interfaces::msg::FloatingPointRange sem_prob_max_range;
+  sem_prob_max_range.from_value = 0.0;
+  sem_prob_max_range.to_value = 1.0;
+  sem_prob_max_desc.floating_point_range.push_back(sem_prob_max_range);
+  const double sem_thres_max = declare_parameter("semantics.max", 0.97, sem_prob_max_desc);
+
+  rcl_interfaces::msg::ParameterDescriptor prob_th_desc;
+  prob_th_desc.description = "Threshold for deleting semantics when dynamically building a map";
+  rcl_interfaces::msg::FloatingPointRange prob_th_range;
+  prob_th_range.from_value = 0.0;
+  prob_th_range.to_value = 1.0;
+  prob_th_desc.floating_point_range.push_back(prob_th_range);
+  const double thres = declare_parameter("semantics.thres", 0.5, prob_th_desc);
+
+  // Add an index for similarity
+  rcl_interfaces::msg::ParameterDescriptor sim_index_desc;
+  sim_index_desc.description = "Index for similarity";
+  const int sim_index = declare_parameter("semantics.sim_query_index", 1, sim_index_desc);
+  sim_query_index_ = sim_index;
+  // The queries are modified through a service since it will come from a Python node
+
   // initialize bloomxai object & params
   RCLCPP_INFO(get_logger(), "Voxel resolution %f", res_);
 
@@ -130,9 +181,39 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   RCLCPP_INFO(get_logger(), "thres_min %f", thres_min);
   RCLCPP_INFO(get_logger(), "thres_max %f", thres_max);
 
-  bloomxai_ = std::make_unique<BloomxaiT>(res_, sem_dim_);
+  RCLCPP_INFO(get_logger(), "Semantic type: %s", semantic_type_str.c_str());
 
-  BloomxaiT::Options options(sem_dim_, initial_sem_val_);
+  if (semantic_type_ == SemanticType::PROBABILITIES) {
+    RCLCPP_INFO(get_logger(), "alpha_reg %f", alpha_reg);
+    RCLCPP_INFO(get_logger(), "sem_thres_min %f", sem_thres_min);
+    RCLCPP_INFO(get_logger(), "sem_thres_max %f", sem_thres_max);
+  } else if (semantic_type_ == SemanticType::FEATURES) {
+    RCLCPP_INFO(get_logger(), "sem_thres %f", thres);
+    RCLCPP_INFO(get_logger(), "sim_index %d", sim_index);
+  }
+
+  // Create semantic operator
+  std::unique_ptr<Bloomxai::BaseSemanticOperator> semantic_operator;
+  if (semantic_type_ == SemanticType::PROBABILITIES) {
+    semantic_operator = std::make_unique<Bloomxai::ProbabilitySemanticOperator>(sem_dim_);
+
+    Bloomxai::ProbabilitySemanticOperator::ProbOptions prob_options;
+    prob_options.alpha_reg = alpha_reg;
+    prob_options.clamp_min_prob = bloomxai_->logods(sem_thres_min);
+    prob_options.clamp_max_prob = bloomxai_->logods(sem_thres_max);
+    semantic_operator->setOptions(prob_options);
+
+  } else if (semantic_type_ == SemanticType::FEATURES) {
+    semantic_operator = std::make_unique<Bloomxai::FeatureSemanticOperator>(sem_dim_);
+
+    Bloomxai::FeatureSemanticOperator::FeatOptions feat_options;
+    feat_options.occ_thres = bloomxai_->logods(thres);
+    semantic_operator->setOptions(feat_options);
+  }
+
+  bloomxai_ = std::make_unique<BloomxaiT>(res_, sem_dim_, std::move(semantic_operator));
+
+  BloomxaiT::Options options;
   options.prob_miss_log = bloomxai_->logods(prob_miss);
   options.prob_hit_log = bloomxai_->logods(prob_hit);
   options.clamp_min_log = bloomxai_->logods(thres_min);
@@ -165,13 +246,11 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   tf2_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf2_buffer_);
 
   using std::chrono_literals::operator""s;
-  
+
   point_cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
-    "cloud_in",
-    rclcpp::SensorDataQoS(),
-    std::bind(&BloomxaiServer::insertCloudCallback, this, std::placeholders::_1)
-  );
-  
+      "cloud_in", rclcpp::SensorDataQoS(),
+      std::bind(&BloomxaiServer::insertCloudCallback, this, std::placeholders::_1));
+
   save_srv_ = create_service<bloomxai_ros::srv::SaveMap>(
       "~/save_map",
       std::bind(
@@ -187,6 +266,13 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
       std::bind(
           &BloomxaiServer::loadMapCallback, this, std::placeholders::_1, std::placeholders::_2));
 
+  if (semantic_type_ == SemanticType::FEATURES) {
+    set_queries_srv_ = create_service<sensors_tools_msgs::srv::SetQueries>(
+        "~/set_queries", std::bind(
+                             &BloomxaiServer::setQueriesCallback, this, std::placeholders::_1,
+                             std::placeholders::_2));
+  }
+
   reset_srv_ =
       create_service<ResetSrv>("~/reset", std::bind(&BloomxaiServer::resetSrv, this, _1, _2));
 
@@ -197,6 +283,30 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   // create timer for publishing visualization
   vis_timer_ = this->create_wall_timer(
       std::chrono::milliseconds(300), std::bind(&BloomxaiServer::publishAll, this));
+}
+
+bool BloomxaiServer::setQueriesCallback(
+    const std::shared_ptr<sensors_tools_msgs::srv::SetQueries::Request> request,
+    const std::shared_ptr<sensors_tools_msgs::srv::SetQueries::Response> response) {
+  int num_queries = request->num_queries;
+  std::vector<float> flat_embeddings = request->flat_embeddings;
+
+  Bloomxai::FeatureSemanticOperator::FeatOptions options;
+  // Read param
+  int occ_thres = get_parameter("semantics.occ_thres").as_int();
+  options.occ_thres = occ_thres;
+  options.num_queries = num_queries;
+  if (num_queries * sem_dim_ != flat_embeddings.size()) {
+    response->success = false;
+    response->message = "flat_embeddings dimension mismatch";
+    return false;
+  }
+  options.query_embeddings =
+      Eigen::Map<Eigen::MatrixXf>(flat_embeddings.data(), num_queries, sem_dim_);
+  bloomxai_->semantic_operator->setOptions(options);
+  response->success = true;
+  response->message = "Queries set successfully.";
+  return true;
 }
 
 bool BloomxaiServer::saveMapCallback(
@@ -217,26 +327,29 @@ bool BloomxaiServer::saveMapCallback(
 }
 
 bool BloomxaiServer::sendGridMap() const {
-
   std::vector<float> min, max;
   std::vector<int> map_size;
   std::vector<std::vector<int>> matrix;
-  std::vector<int> problematic_classes = {2,3};
-  // std::vector<std::vector<float>> tasks = {{0, -1},      {-1.5, -2.3}, {-1.5, -4.5}, {0.22, -2.22},
-  //                                          {0.16, -4.2}, {1.27, -1},   {1.93, -3.3}, {1.75, -4.24}};
+  std::vector<int> problematic_classes = {2, 3};
+  // std::vector<std::vector<float>> tasks = {{0, -1},      {-1.5, -2.3}, {-1.5, -4.5}, {0.22,
+  // -2.22},
+  //                                          {0.16, -4.2}, {1.27, -1},   {1.93, -3.3}, {1.75,
+  //                                          -4.24}};
   double th_z = 0.8;
 
   {
-  std::lock_guard<std::mutex> lock(bloomxai_mutex_);
-  bloomxai_->getMapLimits(min, max);
-  map_size = bloomxai_->getMapXYSize();
-  std::cout << "Map size: " << map_size[0] << ", " << map_size[1] << std::endl;
-  for (int i = 0; i < 3; i++) {
-    max[i] -= bloomxai_->getResolution() / 2.0;
-  }
+    std::lock_guard<std::mutex> lock(bloomxai_mutex_);
+    if (!bloomxai_->semantic_operator->isReady()) {
+      return false;
+    }
+    bloomxai_->getMapLimits(min, max);
+    map_size = bloomxai_->getMapXYSize();
+    std::cout << "Map size: " << map_size[0] << ", " << map_size[1] << std::endl;
+    for (int i = 0; i < 3; i++) {
+      max[i] -= bloomxai_->getResolution() / 2.0;
+    }
 
-
-  matrix = bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes, th_z);
+    matrix = bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes, th_z);
   }
 
   // Add tasks
@@ -399,7 +512,7 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
   }
 
   PCLPointCloud pc;  // input cloud for filtering and ground-detection
-  std::vector<Bloomxai::SemanticMap::VSemanticProb> semantics;
+  std::vector<Bloomxai::VSemantics> semantics;
 
   sensor_msgs::PointCloud2ConstIterator<float> iter_x(*cloud, "x");
   sensor_msgs::PointCloud2ConstIterator<float> iter_y(*cloud, "y");
@@ -430,7 +543,7 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
     pc.points.push_back(p);
     original_indices.push_back(point_index);
 
-    Bloomxai::SemanticMap::VSemanticProb semantic(sem_dim_);
+    Bloomxai::VSemantics semantic(sem_dim_);
     for (int i = 0; i < sem_dim_; ++i) {
       semantic[i] = iter_semantics[i];
       if (semantic[i] > prob_max) {
@@ -458,7 +571,7 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
   pcl::copyPointCloud(pc, kept_indices, pc_filtered);
 
   // Filter the semantics array to match filtered point cloud
-  std::vector<Bloomxai::SemanticMap::VSemanticProb> filtered_semantics;
+  std::vector<Bloomxai::VSemantics> filtered_semantics;
   for (const auto& idx : kept_indices) {
     filtered_semantics.push_back(semantics[idx]);
   }
@@ -514,11 +627,38 @@ rcl_interfaces::msg::SetParametersResult BloomxaiServer::onParameter(
   double sensor_model_miss{get_parameter("sensor_model.miss").as_double()};
   update_param(parameters, "sensor_model.miss", sensor_model_miss);
 
-  BloomxaiT::Options options(sem_dim_, initial_sem_val_);
+  BloomxaiT::Options options;
   options.prob_miss_log = bloomxai_->logods(sensor_model_miss);
   options.prob_hit_log = bloomxai_->logods(sensor_model_hit);
   options.clamp_min_log = bloomxai_->logods(sensor_model_min);
   options.clamp_max_log = bloomxai_->logods(sensor_model_max);
+
+  // Check semantics
+
+  if (semantic_type_ == SemanticType::PROBABILITIES) {
+    // Probabilities
+    double alpha_reg{get_parameter("semantics.alpha_reg").as_double()};
+    update_param(parameters, "semantics.alpha_reg", alpha_reg);
+    double clamp_min_prob{get_parameter("semantics.clamp_min_prob").as_double()};
+    update_param(parameters, "semantics.clamp_min_prob", clamp_min_prob);
+    double clamp_max_prob{get_parameter("semantics.clamp_max_prob").as_double()};
+    update_param(parameters, "semantics.clamp_max_prob", clamp_max_prob);
+    Bloomxai::ProbabilitySemanticOperator::ProbOptions prob_options;
+    prob_options.alpha_reg = alpha_reg;
+    prob_options.clamp_min_prob = clamp_min_prob;
+    prob_options.clamp_max_prob = clamp_max_prob;
+    bloomxai_->semantic_operator->setOptions(prob_options);
+  } else if (semantic_type_ == SemanticType::FEATURES) {
+    // Features
+    // int occ_thres = get_parameter("semantics.occ_thres").as_int();
+    // update_param(parameters, "semantics.occ_thres", occ_thres);
+    int sim_query_index = get_parameter("semantics.sim_query_index").as_int();
+    update_param(parameters, "semantics.sim_query_index", sim_query_index);
+    sim_query_index_ = sim_query_index;
+    // Bloomxai::FeatureSemanticOperator::FeatOptions feat_options;
+    // feat_options.occ_thres = occ_thres;
+    // bloomxai_->semantic_operator->setOptions(feat_options);
+  }
 
   std::lock_guard<std::mutex> lock(bloomxai_mutex_);
   bloomxai_->setOptions(options);
@@ -533,14 +673,24 @@ rcl_interfaces::msg::SetParametersResult BloomxaiServer::onParameter(
 
 void BloomxaiServer::publishAll() {
   const auto rostime = this->now();
-  thread_local std::vector<Eigen::Vector3d> bloomxai_result;
+  thread_local std::vector<Eigen::Vector3d> bloomxai_result, similarity_result;
   bloomxai_result.clear();
+  similarity_result.clear();
   thread_local std::vector<int> labels;
+  thread_local std::vector<float> similarities;
   labels.clear();
+  similarities.clear();
 
   {
-  std::lock_guard<std::mutex> lock(bloomxai_mutex_);
-  bloomxai_->getOccupiedVoxelsAndClass(bloomxai_result, labels);
+    std::lock_guard<std::mutex> lock(bloomxai_mutex_);
+    if (!bloomxai_->semantic_operator->isReady()) {
+      std::cout << "Semantics are not ready for publishing" << std::endl;
+      return;
+    }
+    bloomxai_->getOccupiedVoxelsAndClass(bloomxai_result, labels);
+    if (semantic_type_ == SemanticType::FEATURES) {
+      bloomxai_->getOccupiedVoxelsAndSimilarity(sim_query_index_, similarity_result, similarities);
+    }
   }
 
   if (bloomxai_result.size() <= 1) {
@@ -621,13 +771,64 @@ void BloomxaiServer::publishAll() {
       0) {
     sendGridMap();
   }
+
+  if (semantic_type_ == SemanticType::FEATURES) {
+    // Publish similarity
+    // Publish Cube Marker
+    thread_local visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = world_frame_id_;
+    marker.header.stamp = rostime;
+    marker.ns = "similarity_voxels";
+    marker.id = 0;
+    marker.type = visualization_msgs::msg::Marker::CUBE_LIST;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.pose.orientation.w = 1.0;
+    marker.scale.x = res_;  // size of voxel
+    marker.scale.y = res_;
+    marker.scale.z = res_;
+    marker.points.clear();
+    marker.colors.clear();
+
+    for (size_t i = 0; i < similarity_result.size(); ++i) {
+      const auto& voxel = similarity_result[i];
+      if (voxel.z() >= occupancy_min_z_ && voxel.z() <= occupancy_max_z_) {
+        geometry_msgs::msg::Point p;
+        p.x = voxel.x();
+        p.y = voxel.y();
+        p.z = voxel.z();
+        marker.points.push_back(p);
+
+        std_msgs::msg::ColorRGBA color;
+        auto rgb = sim_to_rgb_(similarities[i]);
+        color.r = rgb[0] / 255.0f;
+        color.g = rgb[1] / 255.0f;
+        color.b = rgb[2] / 255.0f;
+        color.a = 1.0f;
+        marker.colors.push_back(color);
+      }
+    }
+
+    if (marker_pub_->get_subscription_count() +
+            marker_pub_->get_intra_process_subscription_count() >
+        0) {
+      marker_pub_->publish(marker);
+      RCLCPP_INFO(get_logger(), "Published marker with %ld cubes", marker.points.size());
+    }
+  }
 }
 
 bool BloomxaiServer::resetSrv(
     const std::shared_ptr<ResetSrv::Request>, const std::shared_ptr<ResetSrv::Response>) {
   const auto rostime = now();
   std::lock_guard<std::mutex> lock(bloomxai_mutex_);
-  bloomxai_ = std::make_unique<BloomxaiT>(res_, sem_dim_);
+  // Reinitialize the operator
+  std::unique_ptr<Bloomxai::BaseSemanticOperator> semantic_operator;
+  if (semantic_type_ == SemanticType::PROBABILITIES) {
+    semantic_operator = std::make_unique<Bloomxai::ProbabilitySemanticOperator>(sem_dim_);
+  } else if (semantic_type_ == SemanticType::FEATURES) {
+    semantic_operator = std::make_unique<Bloomxai::FeatureSemanticOperator>(sem_dim_);
+  }
+  bloomxai_ = std::make_unique<BloomxaiT>(res_, sem_dim_, std::move(semantic_operator));
 
   RCLCPP_INFO(get_logger(), "Cleared Bonxai");
   // publishAll(rostime);

@@ -17,3 +17,6 @@
       max: 0.97
 
     latch: false
+
+    semantics:
+      alpha_reg: 0.0

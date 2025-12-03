@@ -1,5 +1,5 @@
 #pragma once
-
+#include <any>
 #include <bonxai/bonxai.hpp>
 #include <bonxai/serialization.hpp>
 #include <eigen3/Eigen/Geometry>
@@ -25,22 +25,25 @@ struct SemCellT {
   int32_t update_id : 4;
   int32_t occ_prob_log : 28;
   int32_t sem_dim;
+  int32_t count = 0;
   VSemantics semantics;  // probability vector, features, etc.
 
   SemCellT()
       : update_id(0),
         occ_prob_log(-1),
-        sem_dim(0) {}
+        sem_dim(0),
+        count(0) {}
 
-  // Calculate serialized size in bytes for serialization
-  [[nodiscard]] size_t size() const {
-    if (semantics.size() == 0) {
-      throw std::runtime_error("Used size() on an empty SemCellT.");
-    }
-    return sizeof(int32_t)                        // update_id + occ_prob_log (packed into 4 bytes)
-           + sizeof(int32_t)                      // sem_dim (4 bytes)
-           + (semantics.size() * sizeof(float));  // semantics data
-  }
+  // // Calculate serialized size in bytes for serialization
+  // [[nodiscard]] size_t size() const {
+  //   if (semantics.size() == 0) {
+  //     throw std::runtime_error("Used size() on an empty SemCellT.");
+  //   }
+  //   return sizeof(int32_t)                        // update_id + occ_prob_log (packed into 4
+  //   bytes)
+  //          + sizeof(int32_t)                      // sem_dim (4 bytes)
+  //          + (semantics.size() * sizeof(float));  // semantics data
+  // }
 };
 
 class BaseSemanticOperator {
@@ -51,72 +54,23 @@ class BaseSemanticOperator {
       : sem_dim(sem_dim) {}
   virtual ~BaseSemanticOperator() = default;
 
+  virtual void setOptions(const std::any& options) = 0;
+
   // Initialize a new cell (prior)
   virtual void initialize(SemCellT& cell) const = 0;
 
   // Update a cell given a hit measurement
-  virtual void integrateHit(SemCellT& cell, const SemCellT& measurement) const = 0;
+  virtual void integrateHit(SemCellT& cell, const VSemantics& measurement) const = 0;
 
   // Update a cell given a miss (ray passing through free space)
   virtual void integrateMiss(SemCellT& cell) const = 0;
-};
 
-class ProbabilitySemanticOperator : public BaseSemanticOperator {
-  const VSemantics reg_probs;
-  float alpha_reg;  // Larger means more regularization
+  virtual int argmax(const SemCellT& cell) const = 0;
 
-  float clamp_min_prob = 0.12f;
-  float clamp_max_prob = 0.97f;
+  virtual bool isReady() const = 0;
 
- public:
-  ProbabilitySemanticOperator(int sem_dim, float regularization)
-      : BaseSemanticOperator(sem_dim),
-        alpha_reg(regularization),
-        reg_probs(VSemantics::Constant(sem_dim, regularization)) {};
-
-  virtual void initialize(SemCellT& cell) const override {
-    cell.sem_dim = sem_dim;
-    cell.semantics.resize(sem_dim);
-    cell.semantics.setConstant(1.0f / sem_dim);
-  }
-
-  virtual void integrateHit(SemCellT& cell, const SemCellT& measurement) const override {
-    VSemantics regularized = regularizeSemantics(measurement);
-    cell.semantics *= regularized;
-    // Clamp TODO(anonym): Check if clamping causes artifacts
-    cell.semantics.cwiseMax(clamp_min_prob).cwiseMin(clamp_max_prob);
-    // Normalize to sum to one
-    cell.semantics /= cell.semantics.sum();
-  }
-
-  virtual void integrateMiss(SemCellT& cell) const override {
-    // Simply add uncertainty to the actual cell
-    VSemantics regularized = regularizeSemantics(cell);
-    cell.semantics *= regularized;
-    // Clamp TODO(anonym): Check if clamping causes artifacts
-    cell.semantics.cwiseMax(clamp_min_prob).cwiseMin(clamp_max_prob);
-    // Normalize to sum to one
-    cell.semantics /= cell.semantics.sum();
-  }
-
-  VSemantics regularizeSemantics(const SemCellT& cell) const {
-    return (1 - alpha_reg) * cell.semantics + alpha_reg * reg_probs;
-  }
-
-  int argmax(const SemCellT& cell) const {
-    if (cell.semantics.size() == 0)
-      return 0;  // Handle empty case
-    int maxVal = cell.semantics[0];
-    int maxIndex = 0;
-    for (int i = 1; i < cell.semantics.size(); i++) {
-      if (cell.semantics[i] > maxVal) {
-        maxVal = cell.semantics[i];
-        maxIndex = i;
-      }
-    }
-    return maxIndex;
-  }
-
+  // No similarity concept
+  virtual float getSimilarity(const SemCellT& cell, int query_id) const { return 0.0f; };
 };
 
 /**
@@ -125,24 +79,17 @@ class ProbabilitySemanticOperator : public BaseSemanticOperator {
  * probability vector for classes, features, or labels.
  */
 class SemanticMap {
- public:
-  enum class SemanticMapType {
-    kProbabilities,
-    kFeatures,
-    kLabels,
-  };
-
  private:
-  int _sem_dim;
-  double _resolution;
-  SemanticMapType _type;
-  std::unique_ptr<BaseSemanticOperator> _integrator;
+  int sem_dim_;
+  double resolution_;
 
  public:
   using Vector3D = Eigen::Vector3d;
 
   static constexpr float kFixedPrecision = 1e6f;
   static constexpr float kEps = 1e-9f;
+
+  std::unique_ptr<BaseSemanticOperator> semantic_operator;
 
   /// Compute the logds, but return the result as an integer,
   /// The real number is represented as a fixed precision
@@ -162,7 +109,7 @@ class SemanticMap {
   SemCellT* ensureCellInitalized(SemCellT* cell) {
     if (cell->semantics.size() == 0) {
       // Uninformed prior initialization
-      _integrator->initialize(*cell);
+      semantic_operator->initialize(*cell);
     }
     return cell;
   }
@@ -177,10 +124,11 @@ class SemanticMap {
 
     int32_t occupancy_threshold_log = logods(0.5f);
 
-    Options(int sem_dim, float value) {}
+    Options() {}
   };
 
-  SemanticMap(double resolution, int sem_dim, std::unique_ptr<BaseSemanticOperator> integrator);
+  SemanticMap(
+      double resolution, int sem_dim, std::unique_ptr<BaseSemanticOperator> semantic_operator);
 
   [[nodiscard]] VoxelGrid<SemCellT>& grid();
 
@@ -220,8 +168,6 @@ class SemanticMap {
   // Once finished adding points, you must call updateFreeCells()
   void addMissPoint(const Vector3D& point);
 
-  VSemantics regularizeSemantic(const VSemantics& input) const;
-
   [[nodiscard]] bool isOccupied(const Bonxai::CoordT& coord) const;
 
   [[nodiscard]] bool isUnknown(const Bonxai::CoordT& coord) const;
@@ -229,7 +175,7 @@ class SemanticMap {
   [[nodiscard]] bool isFree(const Bonxai::CoordT& coord) const;
 
   double getResolution() const {
-    return _resolution;
+    return resolution_;
   }
 
   void getOccupiedVoxels(std::vector<Bonxai::CoordT>& coords);
@@ -237,6 +183,8 @@ class SemanticMap {
   void getOccupiedVoxelsAndClass(std::vector<Bonxai::CoordT>& coords, std::vector<int>& classes);
 
   void getFreeVoxels(std::vector<Bonxai::CoordT>& coords);
+
+  void getOccupiedVoxelsAndSimilarity(int query_id, std::vector<Bonxai::CoordT>& coords, std::vector<float>& sim);
 
   void serializeToFile(const std::string& filename) const;
 
@@ -253,7 +201,7 @@ class SemanticMap {
     coords.clear();
     getOccupiedVoxels(coords);
     for (const auto& coord : coords) {
-      const auto p = _grid.coordToPos(coord);
+      const auto p = grid_.coordToPos(coord);
       points.emplace_back(p.x, p.y, p.z);
     }
   }
@@ -271,21 +219,47 @@ class SemanticMap {
     getOccupiedVoxelsAndClass(coords, labels);
     for (size_t i = 0; i < coords.size(); i++) {
       const auto coord = coords[i];
-      const auto p = _grid.coordToPos(coord);
+      const auto p = grid_.coordToPos(coord);
       points.emplace_back(p.x, p.y, p.z);
       point_labels.emplace_back(labels[i]);
     }
   }
 
+  template <typename PointT>
+  void getFreeVoxels(std::vector<PointT>& points) {
+    thread_local std::vector<Bonxai::CoordT> coords;
+    coords.clear();
+    getFreeVoxels(coords);
+    for (const auto& coord : coords) {
+      const auto p = grid_.coordToPos(coord);
+      points.emplace_back(p.x, p.y, p.z);
+    }
+  }
+
+  template <typename PointT>
+  void getOccupiedVoxelsAndSimilarity(int query_id, std::vector<PointT>& points, std::vector<float>& similarities) {
+    thread_local std::vector<Bonxai::CoordT> coords;
+    thread_local std::vector<float> sim;
+    coords.clear();
+    sim.clear();
+    getOccupiedVoxelsAndSimilarity(query_id, coords, sim);
+    for (size_t i = 0; i < coords.size(); i++) {
+      const auto coord = coords[i];
+      const auto p = grid_.coordToPos(coord);
+      points.emplace_back(p.x, p.y, p.z);
+      similarities.emplace_back(sim[i]);
+    }
+  }
+
  private:
-  Options _options;
-  VoxelGrid<SemCellT> _grid;
+  Options options_;
+  VoxelGrid<SemCellT> grid_;
   uint8_t _update_count = 1;
 
-  std::vector<CoordT> _miss_coords;
-  std::vector<CoordT> _hit_coords;
+  std::vector<CoordT> miss_coords_;
+  std::vector<CoordT> hit_coords_;
 
-  mutable Bonxai::VoxelGrid<SemCellT>::Accessor _accessor;
+  mutable Bonxai::VoxelGrid<SemCellT>::Accessor accessor_;
 
   void updateFreeCells(const Vector3D& origin);
 
@@ -305,6 +279,10 @@ class SemanticMap {
     int32_t sem_dim = cell.semantics.size();
     out.write(reinterpret_cast<const char*>(&sem_dim), sizeof(int32_t));
 
+    // Write count
+    int32_t count = cell.semantics.size();
+    out.write(reinterpret_cast<const char*>(&count), sizeof(int32_t));
+
     // Write semantics data
     out.write(reinterpret_cast<const char*>(cell.semantics.data()), sizeof(float) * sem_dim);
   }
@@ -312,23 +290,27 @@ class SemanticMap {
   SemCellT ReadSemCellT(std::istream& input, int sem_dim) {
     SemCellT out;
 
-    // Step 1: Read packed int (update_id and occ_prob_log)
+    // Read packed int (update_id and occ_prob_log)
     int32_t packed;
     input.read(reinterpret_cast<char*>(&packed), sizeof(int32_t));
     out.update_id = (packed >> 28) & 0xF;
     out.occ_prob_log = packed & 0x0FFFFFFF;
 
-    // Step 2: Read and check sem_dim from file
-    int32_t read_sem_dim;
-    input.read(reinterpret_cast<char*>(&read_sem_dim), sizeof(int32_t));
+    // Read and check sem_dim from file
+    int32_t readsem_dim_;
+    input.read(reinterpret_cast<char*>(&readsem_dim_), sizeof(int32_t));
 
-    if (read_sem_dim != sem_dim) {
+    if (readsem_dim_ != sem_dim) {
       throw std::runtime_error("sem_dim in file does not match expected sem_dim");
     }
 
-    out.sem_dim = read_sem_dim;
+    out.sem_dim = readsem_dim_;
 
-    // Step 3: Read vector
+    // Read count
+    int32_t count;
+    input.read(reinterpret_cast<char*>(&count), sizeof(int32_t));
+
+    // Read vector
     out.semantics.resize(sem_dim);
     input.read(reinterpret_cast<char*>(out.semantics.data()), sizeof(float) * sem_dim);
 
@@ -357,20 +339,20 @@ inline void SemanticMap::Serialize(std::ofstream& out, const VoxelGrid<SemCellT>
     Write(out, root_coord.y);
     Write(out, root_coord.z);
 
-    const auto& inner_grid = it.second;
-    for (size_t w = 0; w < inner_grid.mask().wordCount(); w++) {
-      Write(out, inner_grid.mask().getWord(w));
+    const auto& innergrid_ = it.second;
+    for (size_t w = 0; w < innergrid_.mask().wordCount(); w++) {
+      Write(out, innergrid_.mask().getWord(w));
     }
-    for (auto inner = inner_grid.mask().beginOn(); inner; ++inner) {
+    for (auto inner = innergrid_.mask().beginOn(); inner; ++inner) {
       const uint32_t inner_index = *inner;
-      const auto& leaf_grid = *(inner_grid.cell(inner_index));
+      const auto& leafgrid_ = *(innergrid_.cell(inner_index));
 
-      for (size_t w = 0; w < leaf_grid.mask().wordCount(); w++) {
-        Write(out, leaf_grid.mask().getWord(w));
+      for (size_t w = 0; w < leafgrid_.mask().wordCount(); w++) {
+        Write(out, leafgrid_.mask().getWord(w));
       }
-      for (auto leaf = leaf_grid.mask().beginOn(); leaf; ++leaf) {
+      for (auto leaf = leafgrid_.mask().beginOn(); leaf; ++leaf) {
         const uint32_t leaf_index = *leaf;
-        const auto& cell = leaf_grid.cell(leaf_index);
+        const auto& cell = leafgrid_.cell(leaf_index);
         WriteSemCellT(out, cell);  // or any function that writes SemCellT field-by-field
       }
     }
@@ -379,7 +361,7 @@ inline void SemanticMap::Serialize(std::ofstream& out, const VoxelGrid<SemCellT>
 
 inline void SemanticMap::serializeToFile(const std::string& filename) const {
   std::ofstream out(filename, std::ios::binary);
-  Bloomxai::SemanticMap::Serialize(out, _grid);
+  Bloomxai::SemanticMap::Serialize(out, grid_);
   out.close();
 }
 
@@ -394,24 +376,24 @@ inline VoxelGrid<SemCellT> SemanticMap::Deserialize(
     CoordT root_coord{Read<int32_t>(input), Read<int32_t>(input), Read<int32_t>(input)};
 
     auto inner_it = grid.rootMap().try_emplace(root_coord, info.inner_bits).first;
-    auto& inner_grid = inner_it->second;
+    auto& innergrid_ = inner_it->second;
 
-    for (size_t w = 0; w < inner_grid.mask().wordCount(); ++w) {
-      inner_grid.mask().setWord(w, Read<uint64_t>(input));
+    for (size_t w = 0; w < innergrid_.mask().wordCount(); ++w) {
+      innergrid_.mask().setWord(w, Read<uint64_t>(input));
     }
 
-    for (auto inner = inner_grid.mask().beginOn(); inner; ++inner) {
-      auto& leaf_grid = inner_grid.cell(*inner);
-      leaf_grid = grid.allocateLeafGrid();
+    for (auto inner = innergrid_.mask().beginOn(); inner; ++inner) {
+      auto& leafgrid_ = innergrid_.cell(*inner);
+      leafgrid_ = grid.allocateLeafGrid();
 
-      for (size_t w = 0; w < leaf_grid->mask().wordCount(); ++w) {
-        leaf_grid->mask().setWord(w, Read<uint64_t>(input));
+      for (size_t w = 0; w < leafgrid_->mask().wordCount(); ++w) {
+        leafgrid_->mask().setWord(w, Read<uint64_t>(input));
       }
 
-      for (auto leaf = leaf_grid->mask().beginOn(); leaf; ++leaf) {
+      for (auto leaf = leafgrid_->mask().beginOn(); leaf; ++leaf) {
         uint32_t leaf_index = *leaf;
 
-        leaf_grid->cell(leaf_index) = ReadSemCellT(input, sem_dim);
+        leafgrid_->cell(leaf_index) = ReadSemCellT(input, sem_dim);
       }
     }
   }
@@ -424,8 +406,8 @@ inline void SemanticMap::deserializeFromFile(const std::string& filename) {
   char header[256];
   in.getline(header, 256);
   Bloomxai::HeaderInfo info = Bloomxai::GetHeaderInfo(header);
-  auto new_grid = Bloomxai::SemanticMap::Deserialize(in, info, _sem_dim);
-  _grid = std::move(new_grid);
+  auto newgrid_ = Bloomxai::SemanticMap::Deserialize(in, info, sem_dim_);
+  grid_ = std::move(newgrid_);
 }
 
 template <typename PointT, typename AllocatorP, typename AllocatorSem>
@@ -497,5 +479,186 @@ inline void RayIterator(const CoordT& key_origin, const CoordT& key_end, const F
     }
   }
 }
+
+class ProbabilitySemanticOperator : public BaseSemanticOperator {
+ public:
+  struct ProbOptions {
+    // Larger means more regularization
+    float alpha_reg = 0.0f;
+
+    float clamp_min_prob = 0.12f;
+    float clamp_max_prob = 0.97f;
+
+    ProbOptions() {}
+  };
+
+ private:
+  const VSemantics reg_probs_;
+  ProbOptions options_;
+
+ public:
+  ProbabilitySemanticOperator(int sem_dim)
+      : BaseSemanticOperator(sem_dim),
+        reg_probs_(VSemantics::Constant(sem_dim, 1.0f / sem_dim)) {};
+
+  virtual void setOptions(const std::any& options) override {
+    if (!options.has_value())
+      return;
+    try {
+      const ProbOptions& opt = std::any_cast<const ProbOptions&>(options);
+      options_ = opt;
+    } catch (const std::bad_any_cast& e) {
+      std::cout << "Invalid options type for ProbabilitySemanticOperator" << std::endl;
+      return;
+    }
+  }
+
+  virtual void initialize(SemCellT& cell) const override {
+    cell.sem_dim = sem_dim;
+    cell.count = 0;
+    cell.semantics.resize(sem_dim);
+    cell.semantics.setConstant(1.0f / sem_dim);
+  }
+
+  virtual void integrateHit(SemCellT& cell, const VSemantics& measurement) const override {
+    VSemantics regularized = regularizeSemantics(measurement);
+
+    // Correct element-wise multiply
+    cell.semantics = cell.semantics.cwiseProduct(regularized);
+
+    // Correct clamping
+    cell.semantics =
+        cell.semantics.cwiseMax(options_.clamp_min_prob).cwiseMin(options_.clamp_max_prob);
+
+    // Normalize
+    cell.semantics /= cell.semantics.sum();
+  }
+
+  virtual void integrateMiss(SemCellT& cell) const override {
+    // Add uncertainty to the current semantics
+    VSemantics regularized = regularizeSemantics(cell.semantics);
+
+    // Correct element-wise multiply
+    cell.semantics = cell.semantics.cwiseProduct(regularized);
+
+    // Correct clamping
+    cell.semantics =
+        cell.semantics.cwiseMax(options_.clamp_min_prob).cwiseMin(options_.clamp_max_prob);
+
+    // Normalize 
+    cell.semantics /= cell.semantics.sum();
+  }
+
+  VSemantics regularizeSemantics(const VSemantics& semantics) const {
+    return (1 - options_.alpha_reg) * semantics + options_.alpha_reg * reg_probs_;
+  }
+
+  int argmax(const SemCellT& cell) const override {
+    if (cell.semantics.size() == 0)
+      return 0;  // Handle empty case
+    float maxVal = cell.semantics[0];
+    int maxIndex = 0;
+    for (int i = 1; i < cell.semantics.size(); i++) {
+      if (cell.semantics[i] > maxVal) {
+        maxVal = cell.semantics[i];
+        maxIndex = i;
+      }
+    }
+    return maxIndex;
+  }
+
+  bool isReady() const override { return true; }
+};
+
+class FeatureSemanticOperator : public BaseSemanticOperator {
+ public:
+  struct FeatOptions {
+    // Occupancy threshold to initialize the vector and remove it to save space
+    int occ_thres = SemanticMap::logods(0.5f);
+
+    int num_queries = 0;
+    Eigen::MatrixXf query_embeddings = Eigen::MatrixXf::Zero(0, 0);
+  };
+
+ private:
+  FeatOptions options_;
+
+ public:
+  FeatureSemanticOperator(int sem_dim)
+      : BaseSemanticOperator(sem_dim) {}  // N=0 initially
+
+  virtual void setOptions(const std::any& options) override {
+    if (!options.has_value())
+      return;
+    try {
+      const FeatOptions& opt = std::any_cast<const FeatOptions&>(options);
+      if (opt.query_embeddings.cols() != sem_dim ||
+          opt.query_embeddings.rows() != opt.num_queries) {
+        std::cout << "query_embeddings dimension mismatch" << std::endl;
+        return;
+      }
+      options_ = opt;
+    } catch (const std::bad_any_cast& e) {
+      std::cout << "Invalid options type for FeatureSemanticOperator" << std::endl;
+      return;
+    }
+  }
+
+  void initialize(SemCellT& cell) const override {
+    cell.sem_dim = sem_dim;
+    cell.count = 0;
+    cell.semantics = VSemantics::Zero(sem_dim);
+  }
+
+  void integrateHit(SemCellT& cell, const VSemantics& measurement) const override {
+    if (cell.occ_prob_log < options_.occ_thres) {
+      cell.count = 0;
+      cell.semantics.setZero();
+      return;
+    }
+    cell.count++;
+    float inv = 1.0f / cell.count;
+    cell.semantics += (measurement - cell.semantics) * inv;
+  }
+
+  void integrateMiss(SemCellT& cell) const override {
+    if (cell.occ_prob_log < options_.occ_thres) {
+      cell.count = 0;
+      cell.semantics.setZero();
+    }
+  }
+
+  int argmax(const SemCellT& cell) const override {
+    if (options_.query_embeddings.rows() == 0) {
+      std::cerr << "Query embeddings are empty\n";
+      return 0;
+    }
+
+    // similarities = query_embedding_i dot cell.semantics
+    Eigen::VectorXf similarities(options_.query_embeddings.rows());
+    for (int i = 0; i < options_.query_embeddings.rows(); ++i) {
+      similarities(i) = options_.query_embeddings.row(i).dot(cell.semantics);
+    }
+
+    Eigen::Index maxIndex;
+    similarities.maxCoeff(&maxIndex);
+
+    return static_cast<int>(maxIndex);
+  }
+
+  float getSimilarity(const SemCellT& cell, int query_id) const {
+    if (options_.query_embeddings.rows() == 0) {
+      std::cerr << "Query embeddings are empty\n";
+      return 0.0f;
+    }
+    if (query_id >= options_.query_embeddings.rows()) {
+      std::cerr << "query_id out of range\n";
+      return 0.0f;
+    }
+    return options_.query_embeddings.row(query_id).dot(cell.semantics);
+  }
+
+  bool isReady() const override { options_.num_queries > 0 && options_.query_embeddings.rows() > 0; }
+};
 
 }  // namespace Bloomxai

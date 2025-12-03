@@ -7,115 +7,110 @@ namespace Bloomxai {
 
 const int32_t SemanticMap::UnknownProbability = SemanticMap::logods(0.5f);
 
-VoxelGrid<SemanticMap::SemCellT>& SemanticMap::grid() {
-  return _grid;
+VoxelGrid<SemCellT>& SemanticMap::grid() {
+  return grid_;
 }
 
-SemanticMap::SemanticMap(double resolution, int sem_dim)
-    : _sem_dim(sem_dim),
-      _resolution(resolution),
-      UnknownSemProbs(1.0f / sem_dim),
-      UnknownSemLogOdds(SemanticMap::logods(UnknownSemProbs)),
-      UnknownLabels(0),
-      UnknownFeatures(0),
-      _options(sem_dim, UnknownSemProbs),
-      _grid(resolution),
-      _accessor(_grid.createAccessor()) {}
+SemanticMap::SemanticMap(double resolution, int sem_dim, std::unique_ptr<BaseSemanticOperator> semantic_operator_)
+    : sem_dim_(sem_dim),
+      resolution_(resolution),
+      grid_(resolution),
+      accessor_(grid_.createAccessor()),
+      semantic_operator(std::move(semantic_operator_)) {}
 
-const VoxelGrid<SemanticMap::SemCellT>& SemanticMap::grid() const {
-  return _grid;
+const VoxelGrid<SemCellT>& SemanticMap::grid() const {
+  return grid_;
 }
 
 const SemanticMap::Options& SemanticMap::options() const {
-  return _options;
+  return options_;
 }
 
 void SemanticMap::setOptions(const Options& options) {
-  _options = options;
+  options_ = options;
 }
 
-void SemanticMap::addHitPoint(const Vector3D& point, const SemanticMap::VSemantics& semantics) {
-  const auto coord = _grid.posToCoord(point);
-  SemCellT* cell = SemanticMap::ensureCellInitalized(_accessor.value(coord, true));
+void SemanticMap::addHitPoint(const Vector3D& point, const VSemantics& semantics) {
+  const auto coord = grid_.posToCoord(point);
+  SemCellT* cell = SemanticMap::ensureCellInitalized(accessor_.value(coord, true));
 
   // TODO(anonym): Check if only updating once causes artifacts
   if (cell->update_id != _update_count) {
     cell->occ_prob_log =
-        std::max(cell->occ_prob_log + _options.prob_hit_log, _options.clamp_min_log);
+        std::max(cell->occ_prob_log + options_.prob_hit_log, options_.clamp_min_log);
 
-    integrator_->integrateHit(*cell, semantics);
+    semantic_operator->integrateHit(*cell, semantics);
 
     cell->update_id = _update_count;
-    _hit_coords.push_back(coord);
+    hit_coords_.push_back(coord);
   }
 }
 
 void SemanticMap::addMissPoint(const Vector3D& point) {
-  const auto coord = _grid.posToCoord(point);
-  SemCellT* cell = SemanticMap::ensureCellInitalized(_accessor.value(coord, true));
+  const auto coord = grid_.posToCoord(point);
+  SemCellT* cell = SemanticMap::ensureCellInitalized(accessor_.value(coord, true));
 
   if (cell->update_id != _update_count) {
     cell->occ_prob_log =
-        std::max(cell->occ_prob_log + _options.prob_miss_log, _options.clamp_min_log);
+        std::max(cell->occ_prob_log + options_.prob_miss_log, options_.clamp_min_log);
 
-    integrator_->integrateMiss(*cell);
+    semantic_operator->integrateMiss(*cell);
 
     cell->update_id = _update_count;
-    _miss_coords.push_back(coord);
+    miss_coords_.push_back(coord);
   }
 }
 
 bool SemanticMap::isOccupied(const CoordT& coord) const {
-  if (auto* cell = _accessor.value(coord, false)) {
-    return cell->occ_prob_log > _options.occupancy_threshold_log;
+  if (auto* cell = accessor_.value(coord, false)) {
+    return cell->occ_prob_log > options_.occupancy_threshold_log;
   }
   return false;
 }
 
 bool SemanticMap::isUnknown(const CoordT& coord) const {
-  if (auto* cell = _accessor.value(coord, false)) {
-    return cell->occ_prob_log == _options.occupancy_threshold_log;
+  if (auto* cell = accessor_.value(coord, false)) {
+    return cell->occ_prob_log == options_.occupancy_threshold_log;
   }
   return false;
 }
 
 bool SemanticMap::isFree(const CoordT& coord) const {
-  if (auto* cell = _accessor.value(coord, false)) {
-    return cell->occ_prob_log < _options.occupancy_threshold_log;
+  if (auto* cell = accessor_.value(coord, false)) {
+    return cell->occ_prob_log < options_.occupancy_threshold_log;
   }
   return false;
 }
 
 void SemanticMap::updateFreeCells(const Vector3D& origin) {
-  auto accessor = _grid.createAccessor();
+  auto accessor = grid_.createAccessor();
 
   // same as addMissPoint, but using lambda will force inlining
   auto clearPoint = [this, &accessor](const CoordT& coord) {
     SemCellT* cell = SemanticMap::ensureCellInitalized(accessor.value(coord, true));
     if (cell->update_id != _update_count) {
       cell->occ_prob_log =
-          std::max(cell->occ_prob_log + _options.prob_miss_log, _options.clamp_min_log);
+          std::max(cell->occ_prob_log + options_.prob_miss_log, options_.clamp_min_log);
 
       // Make the semantics more uncertain
-      cell->sem_prob_log = SemanticMap::vlogods(
-          SemanticMap::regularizeSemantic(SemanticMap::vprob(cell->sem_prob_log)));
+      semantic_operator->integrateMiss(*cell);
 
       cell->update_id = _update_count;
     }
     return true;
   };
 
-  const auto coord_origin = _grid.posToCoord(origin);
+  const auto coord_origin = grid_.posToCoord(origin);
 
-  for (const auto& coord_end : _hit_coords) {
+  for (const auto& coord_end : hit_coords_) {
     RayIterator(coord_origin, coord_end, clearPoint);
   }
-  _hit_coords.clear();
+  hit_coords_.clear();
 
-  for (const auto& coord_end : _miss_coords) {
+  for (const auto& coord_end : miss_coords_) {
     RayIterator(coord_origin, coord_end, clearPoint);
   }
-  _miss_coords.clear();
+  miss_coords_.clear();
 
   if (++_update_count == 4) {
     _update_count = 1;
@@ -125,11 +120,11 @@ void SemanticMap::updateFreeCells(const Vector3D& origin) {
 void SemanticMap::getOccupiedVoxels(std::vector<CoordT>& coords) {
   coords.clear();
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
-    if (cell.occ_prob_log > _options.occupancy_threshold_log) {
+    if (cell.occ_prob_log > options_.occupancy_threshold_log) {
       coords.push_back(coord);
     }
   };
-  _grid.forEachCell(visitor);
+  grid_.forEachCell(visitor);
 }
 
 void SemanticMap::getMapLimits(std::vector<float>& min, std::vector<float>& max) const {
@@ -141,7 +136,7 @@ void SemanticMap::getMapLimits(std::vector<float>& min, std::vector<float>& max)
       std::numeric_limits<float>::min()};
 
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
-    const auto p = _grid.coordToPos(coord);
+    const auto p = grid_.coordToPos(coord);
     if (p.x < min[0])
       min[0] = p.x;
     if (p.x > max[0])
@@ -155,13 +150,13 @@ void SemanticMap::getMapLimits(std::vector<float>& min, std::vector<float>& max)
     if (p.z > max[2])
       max[2] = p.z;
   };
-  _grid.forEachCell(visitor);
+  grid_.forEachCell(visitor);
 }
 
 std::vector<int> SemanticMap::getMapXYSize() const {
   std::vector<float> min, max;
   getMapLimits(min, max);
-  return {int((max[0] - min[0]) / _resolution) + 1, int((max[1] - min[1]) / _resolution) + 1};
+  return {int((max[0] - min[0]) / resolution_) + 1, int((max[1] - min[1]) / resolution_) + 1};
 }
 
 void SemanticMap::getOccupiedVoxelsAndClass(
@@ -169,22 +164,34 @@ void SemanticMap::getOccupiedVoxelsAndClass(
   coords.clear();
   classes.clear();
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
-    if (cell.occ_prob_log > _options.occupancy_threshold_log) {
+    if (cell.occ_prob_log > options_.occupancy_threshold_log) {
       coords.push_back(coord);
-      classes.push_back(cell.argmax(cell.sem_prob_log));
+      classes.push_back(semantic_operator->argmax(cell));
     }
   };
-  _grid.forEachCell(visitor);
+  grid_.forEachCell(visitor);
 }
 
 void SemanticMap::getFreeVoxels(std::vector<CoordT>& coords) {
   coords.clear();
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
-    if (cell.occ_prob_log < _options.occupancy_threshold_log) {
+    if (cell.occ_prob_log < options_.occupancy_threshold_log) {
       coords.push_back(coord);
     }
   };
-  _grid.forEachCell(visitor);
+  grid_.forEachCell(visitor);
+}
+
+void SemanticMap::getOccupiedVoxelsAndSimilarity(int query_id, std::vector<CoordT>& coords, std::vector<float>& similarities) {
+  coords.clear();
+  similarities.clear();
+  auto visitor = [&](SemCellT& cell, const CoordT& coord) {
+    if (cell.occ_prob_log > options_.occupancy_threshold_log) {
+      coords.push_back(coord);
+      similarities.push_back(semantic_operator->getSimilarity(cell, query_id));
+    }
+  };
+  grid_.forEachCell(visitor);
 }
 
 std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
@@ -193,13 +200,13 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
   std::vector<std::vector<int>> matrix(map_size[1], std::vector<int>(map_size[0], -1));
 
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
-    int grid_coord_x = int(coord.x - (min[0] / _resolution));
-    int grid_coord_y = int(coord.y - (min[1] / _resolution));
-    float coord_z_th = th_z / _resolution;
+    int grid_coord_x = int(coord.x - (min[0] / resolution_));
+    int grid_coord_y = int(coord.y - (min[1] / resolution_));
+    float coord_z_th = th_z / resolution_;
 
     bool is_problematic = false;
     for (int c : problematic_classes) {
-      if (cell.argmax(cell.sem_prob_log) == c) {
+      if (semantic_operator->argmax(cell) == c) {
         is_problematic = true;
         break;
       }
@@ -220,7 +227,7 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
     }
 
     int prev_value = matrix[grid_coord_y][grid_coord_x];
-    if (coord.z > coord_z_th && cell.occ_prob_log > _options.occupancy_threshold_log) {
+    if (coord.z > coord_z_th && cell.occ_prob_log > options_.occupancy_threshold_log) {
       matrix[grid_coord_y][grid_coord_x] = 100;
     } else if (is_problematic && prev_value != 100) {
       matrix[grid_coord_y][grid_coord_x] = 51;
@@ -229,7 +236,7 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
     }
   };
 
-  _grid.forEachCell(visitor);
+  grid_.forEachCell(visitor);
   return matrix;
 }
 

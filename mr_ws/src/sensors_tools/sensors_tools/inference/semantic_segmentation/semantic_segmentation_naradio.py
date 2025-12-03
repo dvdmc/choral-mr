@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import numpy as np
 
 import torch
 from PIL import Image
 from torchvision import transforms
 from sensors_tools.inference.models.naradio.naradio import NARadioEncoder
-
+from sensors_tools.inference.models.naradio.utils import compute_cos_sim
 
 from .semantic_segmentation_base import (
     SemanticSegmentationBase,
@@ -36,23 +36,23 @@ class SemanticSegmentationNaradioConfig(SemanticSegmentationBaseConfig):
     semantic_feature_type: SemanticFeatureType = "probability_vector"
     """ Semantic feature type """
 
-    sam_checkpoint_path: str = "/root/checkpoints/Naradio/sam_vit_b_01ec64.pth"
-    """ Path to the SAM checkpoint """
+    model_version: str = "radio_v2.5-b"
+    """ Naradio model version: radio_v2.5-x where x can be b,l, or g """
 
-    sam_model_type: str = "vit_b"
-    """ Type of the SAM model """
+    lang_model: str = "siglip"
+    """ Naradio language model: siglip, clip """
 
-    coarse_threshold: float = 0.2
-    """ Threshold for the SAM refinement """
+    input_resolution: Tuple[int,int] = (512,512)
+    """ Input resolution of the model """
 
     colors: Optional[List[List[int]]] = None
     """ Optional colormap to use """
-
 
 class SemanticSegmentationNaradio(SemanticSegmentationBase):
     supported_feature_types = [
         "label",
         "probability_vector",
+        "feature_vector",
     ]
 
     def __init__(
@@ -71,17 +71,14 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
         # Config the classes to detect
         if self.cfg.semantic_dataset_type == "custom_set":
             self.label_names = self.cfg.custom_set_labels
-
         else:
             self.label_names = get_labels_name(self.cfg.semantic_dataset_type)
 
         model, transform = self.init_model(
-            self.label_names,
-            self.cfg.coarse_threshold,
-            self.cfg.sam_checkpoint_path,
-            self.cfg.sam_model_type,
+            self.cfg.model_version,
+            self.cfg.lang_model,
+            self.cfg.input_resolution
         )
-        self.softmax = torch.nn.Softmax(dim=0).to(self.device)
 
         # Config the dataset type
         if self.cfg.semantic_dataset_type == "custom_set":
@@ -104,39 +101,31 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
                 self.cfg.semantic_dataset_type
             )
 
+        # Config label names
+        if self.cfg.semantic_dataset_type != "custom_set":
+            # TODO: We have to add the prompt engineered ones
+            self.label_names = get_labels_name(self.cfg.semantic_dataset_type)
+
+        self.text_features = model.encode_labels(self.label_names)
+        print(self.text_features.shape)
         super().__init__(model, transform, self.device, self.cfg.semantic_feature_type)
 
     def init_model(
         self,
-        label_names,
-        coarse_threshold,
-        sam_checkpoint_path,
-        sam_model_type,
+        model_version,
+        lang_model,
+        input_resolution,
     ):
-        model = Naradio(
-            clip_type="openai",
-            clip_model_type="ViT-B/16",
-            vfm_model="dino",
-            class_names=label_names,
-            device=self.device,
-            sam_refinement=True,
-            coarse_thresh=coarse_threshold,
-            minimal_area=225,
-            debug=False,
-            sam_ckpt=sam_checkpoint_path,
-            sam_model_type=sam_model_type,
-        )
+        model = NARadioEncoder(model_version=model_version, lang_model=lang_model,
+            input_resolution=input_resolution, compile=False)
 
         preprocess = transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize(
-                    [0.48145466, 0.4578275, 0.40821073],
-                    [0.26862954, 0.26130258, 0.27577711],
-                ),
+                transforms.Resize(model.input_resolution, 
+                                  interpolation=transforms.InterpolationMode.BILINEAR)
             ]
         )
-        model = model.eval()
 
         return model, preprocess
 
@@ -170,20 +159,35 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
         image_pil = Image.fromarray(image)
         img_t = self.transform(image_pil).unsqueeze(0).to(self.device)
 
-        pred, logits = self.model.predict(image_pil, img_t)
-        probs = self.softmax(logits)
-        probs = recover_size(probs)
+        feat_map = self.model.encode_image_to_feat_map(img_t)
+        lang_aligned_feat_map = self.model.align_spatial_features_with_language(feat_map)
+        lang_aligned_feat_map = lang_aligned_feat_map.squeeze(0).permute(1, 2, 0)
+
+        print(f"shapes: {feat_map.shape}, {lang_aligned_feat_map.shape}")
+        torch.cuda.empty_cache()
+        if self.semantic_feature_type == "feature_vector":
+            self.semantics = recover_size(lang_aligned_feat_map).permute(2, 0, 1).cpu().numpy()
+            return self.semantics
+        # Flatten feat_map_resized keeping its shape to recover later
+        N,C = self.text_features.shape
+        H, W, _ = lang_aligned_feat_map.shape
+        M = H * W
+        feat_map_flat = lang_aligned_feat_map.reshape(M, C)
+        sim_matrix_flat = compute_cos_sim(self.text_features, feat_map_flat, softmax=True)
+        sim_matrix_flat = sim_matrix_flat.T
+        probs = sim_matrix_flat.reshape(N, H, W)
 
         if self.semantic_feature_type == "probability_vector":
-            self.semantics = probs.permute(1, 2, 0).cpu().numpy()
+            self.semantics = recover_size(probs).permute(1, 2, 0).cpu().numpy()
             return self.semantics
 
         # Get the label
         pred = probs.argmax(dim=0)
-        self.semantics = pred.cpu().numpy()
+        self.semantics = recover_size(pred).cpu().numpy()
 
         return self.semantics
 
+    @torch.no_grad()
     def to_rgb(
         self, semantics, bgr=False, feature_type=None, rgb_image=None, overlay=False
     ):
@@ -191,6 +195,7 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
         semantic_feature_type = (
             feature_type if feature_type is not None else self.semantic_feature_type
         )
+
         if semantic_feature_type == "label":
             return labels_to_image(
                 semantics,
@@ -200,9 +205,18 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
                 rgb_image=rgb_image,
             )
         elif semantic_feature_type == "probability_vector":
-            print(f"LABELS: {np.unique(np.argmax(semantics, axis=-1))}")
             return labels_to_image(
                 np.argmax(semantics, axis=-1),
+                self.semantics_color_map,
+                bgr=bgr,
+                overlay=overlay,
+                rgb_image=rgb_image,
+            )
+        elif semantic_feature_type == "feature_vector":
+            probs = compute_cos_sim(self.text_features, semantics, softmax=True)
+            labels = probs.argmax(dim=-1)
+            return labels_to_image(
+                labels,
                 self.semantics_color_map,
                 bgr=bgr,
                 overlay=overlay,
@@ -214,3 +228,5 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
             return 1
         elif self.semantic_feature_type == "probability_vector":
             return self.semantics_color_map.shape[0]
+        elif self.semantic_feature_type == "feature_vector":
+            return self.text_features.shape[0] # TODO: Or not

@@ -10,6 +10,7 @@ find_package(std_msgs REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/MoveSensor.srv"
+  "srv/SetQueries.srv"
   DEPENDENCIES geometry_msgs std_msgs
 )
 

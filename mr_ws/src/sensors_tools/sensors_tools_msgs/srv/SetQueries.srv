@@ -1,0 +1,5 @@
+int32 num_queries
+float32[] flat_embeddings
+---
+bool success
+string message

@@ -24,12 +24,17 @@ if TYPE_CHECKING:
         SemanticSegmentationTrident,
         SemanticSegmentationTridentConfig,
     )
+    from .semantic_segmentation_naradio import (
+        SemanticSegmentationNaradio,
+        SemanticSegmentationNaradioConfig,
+    )
 
 InferenceConfig = Union[
     "SemanticSegmentationDeepLabV3Config",
     "SemanticSegmentationSegformerConfig",
     "SemanticSegmentationCLIPConfig",
     "SemanticSegmentationTridentConfig",
+    "SemanticSegmentationNaradioConfig",
 ]
 
 Inference = Union[
@@ -37,6 +42,7 @@ Inference = Union[
     "SemanticSegmentationSegformer",
     "SemanticSegmentationCLIP",
     "SemanticSegmentationTrident",
+    "SemanticSegmentationNaradio",
 ]
 
 
@@ -59,6 +65,11 @@ def get_semantic_segmentation_config(inference_type: str):
         from .semantic_segmentation_trident import SemanticSegmentationTridentConfig
 
         return SemanticSegmentationTridentConfig
+    
+    elif inference_type == "naradio":
+        from .semantic_segmentation_naradio import SemanticSegmentationNaradioConfig
+
+        return SemanticSegmentationNaradioConfig
 
     else:
         raise NotImplementedError(f"Inference type {inference_type} not implemented")
@@ -86,5 +97,10 @@ def get_semantic_segmentation(
         from .semantic_segmentation_trident import SemanticSegmentationTrident
 
         return SemanticSegmentationTrident(inference_cfg)
+    
+    elif inference_type == "naradio":
+        from .semantic_segmentation_naradio import SemanticSegmentationNaradio
+
+        return SemanticSegmentationNaradio(inference_cfg)
     else:
         raise NotImplementedError(f"Inference type {inference_type} not implemented")

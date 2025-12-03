@@ -4,6 +4,21 @@
 #include <cstdint>
 #include <iostream>
 
+static inline std::vector<uint8_t> jetColor(float x)
+{
+    x = std::clamp(x, 0.0f, 1.0f);
+
+    float r = std::clamp(1.5f - std::abs(4.0f * x - 3.0f), 0.0f, 1.0f);
+    float g = std::clamp(1.5f - std::abs(4.0f * x - 2.0f), 0.0f, 1.0f);
+    float b = std::clamp(1.5f - std::abs(4.0f * x - 1.0f), 0.0f, 1.0f);
+
+    return {
+        static_cast<uint8_t>(r * 255.0f),
+        static_cast<uint8_t>(g * 255.0f),
+        static_cast<uint8_t>(b * 255.0f)
+    };
+}
+
 static const std::vector<std::vector<uint8_t>> LABEL_TO_RGB_8 = {
     {0, 0, 0},        // 0=background
     {128, 0, 128},    // 5=bottle
@@ -71,108 +86,53 @@ static const std::vector<std::vector<uint8_t>> LABEL_TO_RGB_150 = {
     {0, 133, 255}, {255, 214, 0}, {25, 194, 194}, {102, 255, 0}, {92, 0, 255}
 };
 
-std::vector<uint8_t> hsvToRgb(float H, float S, float V) {
-    if (H > 360.0f || H < 0.0f || S > 1.0f || S < 0.0f || V > 1.0f || V < 0.0f) {
-        // Handle invalid inputs or return black
-        return {0, 0, 0};
-    }
+static std::vector<uint8_t> hsvToRgb(float h, float s, float v)
+{
+    float r, g, b;
 
-    float R, G, B;
-    if (S == 0.0f) {
-        R = G = B = V; // Achromatic (gray)
-    } else {
-        int i = (int)(H / 60.0f);
-        float f = (H / 60.0f) - i;
-        float p = V * (1.0f - S);
-        float q = V * (1.0f - S * f);
-        float t = V * (1.0f - S * (1.0f - f));
+    int i = static_cast<int>(std::floor(h * 6.0f));
+    float f = h * 6.0f - i;
+    float p = v * (1.0f - s);
+    float q = v * (1.0f - f * s);
+    float t = v * (1.0f - (1.0f - f) * s);
 
-        switch (i % 6) {
-            case 0: R = V; G = t; B = p; break;
-            case 1: R = q; G = V; B = p; break;
-            case 2: R = p; G = V; B = t; break;
-            case 3: R = p; G = q; B = V; break;
-            case 4: R = t; G = p; B = V; break;
-            case 5: R = V; G = p; B = q; break;
-            default: R = G = B = 0; break;
-        }
+    switch (i % 6) {
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
+        case 5: r = v; g = p; b = q; break;
+        default: r = g = b = 0.0f; break; // Safety
     }
 
     return {
-        (uint8_t)(R * 255.0f),
-        (uint8_t)(G * 255.0f),
-        (uint8_t)(B * 255.0f)
+        static_cast<uint8_t>(std::round(r * 255.0f)),
+        static_cast<uint8_t>(std::round(g * 255.0f)),
+        static_cast<uint8_t>(std::round(b * 255.0f))
     };
 }
 
-static const std::vector<uint8_t> interpolateColor(
-    const std::vector<uint8_t> &color1, const std::vector<uint8_t> &color2) {
-  std::vector<uint8_t> interpolatedColor;
-  for (int i = 0; i < 3; i++) {
-    interpolatedColor.push_back((color1[i] + color2[i]) / 2);
-  }
-  return interpolatedColor;
-}
+static std::vector<std::vector<uint8_t>> generateColorMap(int n)
+{
+    std::vector<std::vector<uint8_t>> map;
 
-static std::vector<std::vector<uint8_t>> generateColorMap(int numLabels) {
-    std::vector<std::vector<uint8_t>> colorMap;
+    if (n == 0)
+        return map;
 
-    // --- 1. Define specific, requested colors for the first few classes ---
-    const std::vector<std::vector<uint8_t>> requested_start_map = {
-        // Label 0: Black (Background)
-        {0, 0, 0},
-        // Label 1: Light Gray (Neutral, high V, low S)
-        {200, 200, 200},
-        // Label 2: Desaturated Reddish (Red Hue, low S, high V)
-        hsvToRgb(0.0f, 0.25f, 0.9f),
-        // Label 3: Desaturated Blueish (Blue Hue, low S, high V)
-        hsvToRgb(240.0f, 0.25f, 0.9f)
-    };
-    
-    // Determine how many requested colors we can use (up to numLabels)
-    int initial_colors_count = std::min((int)requested_start_map.size(), numLabels);
-    
-    // Add the initial colors to the map
-    for (int i = 0; i < initial_colors_count; ++i) {
-        colorMap.push_back(requested_start_map[i]);
+    // 0: background → black
+    map.push_back({0, 0, 0});
+
+    int num_fg = n - 1;
+    float s = 0.65f;
+    float v = 0.95f;
+
+    for (int i = 0; i < num_fg; i++) {
+        float h = float(i) / float(num_fg);   // MUST match Python exactly
+        map.push_back(hsvToRgb(h, s, v));
     }
 
-    // --- 2. Generate remaining colors using a controlled HSV distribution ---
-    
-    // We only need to generate colors if the total is greater than the initial set
-    int generated_start_index = colorMap.size();
-    int remaining_labels = numLabels - generated_start_index;
-
-    if (remaining_labels > 0) {
-        // Controlled Saturation (S): Lower value for neutrality
-        const float saturation = 0.35f; 
-        // Controlled Value (V): Maintain high brightness for contrast
-        const float value = 0.95f;   
-
-        // We will start the hue from a non-red/blue position to ensure
-        // the new set of colors is distinct from the hardcoded ones.
-        // Let's start around 60 (Yellow/Green) and 120 (Green) is a good spot.
-        const float HUE_START_OFFSET = 100.0f; 
-        const float HUE_RANGE = 360.0f - HUE_START_OFFSET;
-
-        // Calculate the step in Hue to evenly space the *remaining* colors
-        float hueStep = HUE_RANGE / (float)remaining_labels;
-
-        for (int i = 0; i < remaining_labels; ++i) {
-            // Calculate the current hue, wrapping around 360 degrees
-            float currentHue = std::fmod(HUE_START_OFFSET + (float)i * hueStep, 360.0f);
-
-            // Convert HSV to RGB and add to the map
-            colorMap.push_back(hsvToRgb(currentHue, saturation, value));
-        }
-    }
-
-    // Ensure we don't return more colors than requested (safety check)
-    if (colorMap.size() > (size_t)numLabels) {
-        colorMap.resize(numLabels);
-    }
-    
-    return colorMap;
+    return map;
 }
 
 static const std::vector<std::vector<uint8_t>> getLabelMap(const int num_classes) {

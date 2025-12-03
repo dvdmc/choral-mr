@@ -46,7 +46,8 @@ static void Bonxai_InsertPointCloud(benchmark::State& state) {
   std::vector<Eigen::Vector3d> points;
   ReadPointsFromPCD(filepath.generic_string(), points);
 
-  Bloomxai::SemanticMap bloomxai_map(voxel_res, 5);
+  auto op = std::make_unique<Bloomxai::ProbabilitySemanticOperator>(5);
+  Bloomxai::SemanticMap bloomxai_map(voxel_res, 5, std::move(op));
 
   // Create a dummy vector of probs for the semantics
   std::vector<Eigen::VectorXf> probs(points.size(), Eigen::VectorXf::Constant(5, 1.0f/5.0f));

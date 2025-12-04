@@ -1,8 +1,8 @@
 #include "bloomxai_map/semantic_map.hpp"
 
 #include <eigen3/Eigen/Geometry>
-#include <unordered_set>
 #include <queue>
+#include <unordered_set>
 
 namespace Bloomxai {
 
@@ -199,19 +199,23 @@ void SemanticMap::getOccupiedVoxelsClassAndSimilarity(
   grid_.forEachCell(visitor);
 }
 
-void collapseGoalRegion(std::vector<std::vector<int>>& grid, int goal_code = 22) {
+void collapseTasks(std::vector<std::vector<int>>& grid, int goal_code = 22) {
   int H = grid.size();
   int W = grid[0].size();
+  int min_size = 4;
 
-  std::vector<std::pair<int, int>> region;
-  std::queue<std::pair<int, int>> q;
   std::vector<std::vector<bool>> visited(H, std::vector<bool>(W, false));
 
-  // Find all goal cells (first pass) and BFS
+  const int dx[8] = {1, -1, 0, 0, 1, -1, 1, -1};
+  const int dy[8] = {0, 0, 1, -1, 1, -1, -1, 1};
+
   for (int y = 0; y < H; y++) {
     for (int x = 0; x < W; x++) {
+      // Start BFS for each unvisited goal cell
       if (grid[y][x] == goal_code && !visited[y][x]) {
-        // BFS to gather entire connected goal region
+        std::queue<std::pair<int, int>> q;
+        std::vector<std::pair<int, int>> region;
+
         q.push({x, y});
         visited[y][x] = true;
 
@@ -220,9 +224,7 @@ void collapseGoalRegion(std::vector<std::vector<int>>& grid, int goal_code = 22)
           q.pop();
           region.push_back({cx, cy});
 
-          const int dx[4] = {1, -1, 0, 0};
-          const int dy[4] = {0, 0, 1, -1};
-
+          // explore 4-neighbors
           for (int k = 0; k < 4; k++) {
             int nx = cx + dx[k];
             int ny = cy + dy[k];
@@ -235,24 +237,39 @@ void collapseGoalRegion(std::vector<std::vector<int>>& grid, int goal_code = 22)
           }
         }
 
-        // Reduce region to a single cell
+        // --- Collapse this region ---
         if (!region.empty()) {
-          // Pick center cell
-          int cx_sum = 0, cy_sum = 0;
+          // find bounding box
+          int min_x = W, min_y = H;
+          int max_x = 0, max_y = 0;
+
           for (auto& p : region) {
-            cx_sum += p.first;
-            cy_sum += p.second;
+            min_x = std::min(min_x, p.first);
+            min_y = std::min(min_y, p.second);
+            max_x = std::max(max_x, p.first);
+            max_y = std::max(max_y, p.second);
           }
-          int cx = cx_sum / region.size();
-          int cy = cy_sum / region.size();
 
-          // Mark all region as free
-          for (auto& p : region) grid[p.second][p.first] = 0;
+          // bounding-box sizes (optional)
+          int x_size = max_x - min_x + 1;
+          int y_size = max_y - min_y + 1;
 
-          // Mark only the representative as goal
-          grid[cy][cx] = goal_code;
+          // bounding-box center
+          int cx = (min_x + max_x) / 2;
+          int cy = (min_y + max_y) / 2;
 
-          region.clear();
+          // region size (optional)
+          int region_size = region.size();
+
+          // clear entire region
+          for (auto& p : region) {
+            grid[p.second][p.first] = 0;
+          }
+
+          // mark center cell
+          if (x_size >= min_size && y_size >= min_size) {
+            grid[cy][cx] = goal_code;
+          }
         }
       }
     }
@@ -264,7 +281,10 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
     const std::vector<int>& problematic_classes, const std::vector<int>& task_classes,
     float th_z) const {
   std::vector<std::vector<int>> matrix(map_size[1], std::vector<int>(map_size[0], -1));
-
+  const int FREE_VALUE = 0;
+  const int OCCUPIED_VALUE = 100;
+  const int PROBLEMATIC_VALUE = 51;
+  const int TASK_VALUE = 22;
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
     int grid_coord_x = int(coord.x - (min[0] / resolution_));
     int grid_coord_y = int(coord.y - (min[1] / resolution_));
@@ -297,18 +317,20 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
 
     int prev_value = matrix[grid_coord_y][grid_coord_x];
     if (coord.z > coord_z_th && cell.occ_prob_log > options_.occupancy_threshold_log) {
-      matrix[grid_coord_y][grid_coord_x] = 100;
-    } else if (is_problematic && prev_value != 100) {
-      matrix[grid_coord_y][grid_coord_x] = 51;
-    } else if (is_task && prev_value != 100 && prev_value != 51) {
-      matrix[grid_coord_y][grid_coord_x] = 22;
-    } else if (prev_value != 100 && prev_value != 51) {
-      matrix[grid_coord_y][grid_coord_x] = 0;
+      matrix[grid_coord_y][grid_coord_x] = OCCUPIED_VALUE;
+    } else if (is_problematic && prev_value != OCCUPIED_VALUE) {
+      matrix[grid_coord_y][grid_coord_x] = PROBLEMATIC_VALUE;
+    } else if (is_task && prev_value != OCCUPIED_VALUE && prev_value != PROBLEMATIC_VALUE) {
+      matrix[grid_coord_y][grid_coord_x] = TASK_VALUE;
+    } else if (
+        prev_value != OCCUPIED_VALUE && prev_value != PROBLEMATIC_VALUE &&
+        prev_value != TASK_VALUE) {
+      matrix[grid_coord_y][grid_coord_x] = FREE_VALUE;
     }
   };
 
   grid_.forEachCell(visitor);
-  collapseGoalRegion(matrix, 22);
+  collapseTasks(matrix, TASK_VALUE);
   return matrix;
 }
 

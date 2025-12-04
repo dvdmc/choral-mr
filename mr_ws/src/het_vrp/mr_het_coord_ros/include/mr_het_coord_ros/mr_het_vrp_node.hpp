@@ -65,7 +65,9 @@ class MRVRPNode : public rclcpp::Node {
   std::string paths_filename_;
   std::string results_path_;
   std::string tasks_filename_;
+  std::vector<double> depot_position_;
   std::shared_ptr<GridMap> map_;
+  std::string global_frame_;
   std::vector<std::vector<float>> tasks_;
   std::shared_ptr<BasePlanner> path_planner_;
   std::vector<std::vector<std::vector<float>>> path_, hom_path_, het_path_;

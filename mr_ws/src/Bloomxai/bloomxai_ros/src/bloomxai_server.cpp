@@ -124,10 +124,10 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   // Transform string to enum
   semantic_type_ = semantic_type_map.at(semantic_type_str);
 
-  // Declare the set of complicated and task classes
+  // Declare the set of problematic and task classes
   std::vector<int64_t> tmp;
-  this->declare_parameter("semantics.complicated_classes", std::vector<int64_t>{1});
-  if(!this->get_parameter("semantics.complicated_classes", tmp)){
+  this->declare_parameter("semantics.problematic_classes", std::vector<int64_t>{1});
+  if(!this->get_parameter("semantics.problematic_classes", tmp)){
     RCLCPP_ERROR(this->get_logger(), "Problematic classes not configured, using default!");
   }
   problematic_classes_.assign(tmp.begin(), tmp.end());
@@ -183,6 +183,8 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   RCLCPP_INFO(get_logger(), "Voxel resolution %f", res_);
 
   // Dump config
+  RCLCPP_INFO(get_logger(), "world_frame_id %s", world_frame_id_.c_str());
+  RCLCPP_INFO(get_logger(), "base_frame_id %s", base_frame_id_.c_str());
   RCLCPP_INFO(get_logger(), "occupancy_min_z %f", occupancy_min_z_);
   RCLCPP_INFO(get_logger(), "occupancy_max_z %f", occupancy_max_z_);
   RCLCPP_INFO(get_logger(), "min_range %f", min_range_);
@@ -196,6 +198,15 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
 
   RCLCPP_INFO(get_logger(), "Semantic type: %s", semantic_type_str.c_str());
 
+  RCLCPP_INFO(get_logger(), "Problematic classes:");
+  for (const int64_t& c : problematic_classes_) {
+    RCLCPP_INFO(get_logger(), "%d", c);
+  }
+
+  RCLCPP_INFO(get_logger(), "Task classes:");
+  for (const int64_t& c : task_classes_) {
+    RCLCPP_INFO(get_logger(), "%d", c);
+  }
   if (semantic_type_ == SemanticType::PROBABILITIES) {
     RCLCPP_INFO(get_logger(), "alpha_reg %f", alpha_reg);
     RCLCPP_INFO(get_logger(), "sem_thres_min %f", sem_thres_min);

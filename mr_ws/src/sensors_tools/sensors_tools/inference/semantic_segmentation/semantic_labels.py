@@ -697,9 +697,10 @@ def get_my_color_map(num_labels=150):
     """Returns a custom-style color map as an np.ndarray of shape (num_labels, 3)."""
     color_map = np.array(
         [
+            [100, 100, 100],
             [200, 200, 200],
-            [40, 40, 40],
             [183, 135, 65],
+            [40, 40, 40],
             [60, 175, 61],
             [80, 50, 50],
             [4, 200, 3],

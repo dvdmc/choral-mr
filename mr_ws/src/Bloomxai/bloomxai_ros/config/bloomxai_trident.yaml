@@ -3,7 +3,7 @@
     resolution: 0.1
     frame_id: "earth"
     base_frame_id: "camera_link"
-    sem_dim: 4
+    sem_dim: 6
 
     occupancy_min_z: -100.0
     occupancy_max_z: 100.0
@@ -24,5 +24,5 @@
       min: 0.12
       max: 0.97
 
-      problematic_classes: [1,2] # ['floor','cable','pebbles', 'animal']
-      task_classes: [3] # ['animal']
+      problematic_classes: [2,3]
+      task_classes: [4]

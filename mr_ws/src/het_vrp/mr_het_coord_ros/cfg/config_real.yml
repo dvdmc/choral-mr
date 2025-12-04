@@ -4,4 +4,7 @@
     map_name: real
     paths_filename: "none"
 
-    tasks_filename: "/root/mr_ws/tasks_real.json"
+    depot_position: [0.8, 0.0]
+    # tasks_filename: "/root/mr_ws/tasks_real.json"
+
+    global_frame: "earth"

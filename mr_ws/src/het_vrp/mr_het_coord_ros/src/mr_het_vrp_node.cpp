@@ -39,6 +39,12 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
   } else {
     tasks_ = map_->getTasksFromGridMap();
   }
+  // Add depot position first if it is not empty
+  if (depot_position_.size() > 0) {
+    std::vector<float> depot_float(depot_position_.begin(), depot_position_.end());
+    tasks_.insert(tasks_.begin(), depot_float);
+  }
+
   RCLCPP_INFO(this->get_logger(), "Found %ld tasks", tasks_.size());
   if(tasks_.size() == 0) {
     RCLCPP_ERROR(this->get_logger(), "No tasks found, shutting down");
@@ -83,7 +89,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
   RCLCPP_INFO(this->get_logger(), "Finished experiments");
 
   // Uncomment below for batched experiments
-  rclcpp::shutdown();
+  // rclcpp::shutdown();
 }
 MRVRPNode::~MRVRPNode() {}
 
@@ -93,7 +99,7 @@ void MRVRPNode::pubTimerCallback() {
 
   if (tasks_.size() > 0) {
     visualization_msgs::msg::MarkerArray markers =
-        createTasksMarkers(tasks_, map_->width_m * 0.01);
+        createTasksMarkers(tasks_, map_->width_m * 0.02);
     pub_tasks_->publish(markers);
   }
   if (hom_path_.size() > 0) {
@@ -129,6 +135,7 @@ void MRVRPNode::readROSParameters() {
   this->declare_parameter("results_path", "none");
 
   this->declare_parameter("tasks_filename", "none");
+  this->declare_parameter("depot_position", std::vector<double>({}));
 
   // VRP config
   this->declare_parameter("cost_scaling", 5.0f);
@@ -140,6 +147,9 @@ void MRVRPNode::readROSParameters() {
 
   this->declare_parameter("solver_seconds", 30);
   this->declare_parameter("fixed_random_seed", true);
+
+  // ROS config
+  this->declare_parameter("global_frame", "map");
 
   std::vector<double> temp;
   this->get_parameter("num_vehicles", num_vehicles_);
@@ -154,6 +164,7 @@ void MRVRPNode::readROSParameters() {
   this->get_parameter("results_path", results_path_);
 
   this->get_parameter("tasks_filename", tasks_filename_);
+  this->get_parameter("depot_position", depot_position_);
 
   this->get_parameter("cost_scaling", cost_scaling_);
   this->get_parameter("lambda_good_trav", lambda_good_trav_);
@@ -162,6 +173,8 @@ void MRVRPNode::readROSParameters() {
   this->get_parameter("d_05_collision", d_05_collision_);
   this->get_parameter("solver_seconds", solver_seconds_);
   this->get_parameter("fixed_random_seed", fixed_random_seed_);
+
+  this->get_parameter("global_frame", global_frame_);
 
   for (auto s : agent_types_str_) {
     agent_types_.push_back(stringToAgentType(s));
@@ -179,6 +192,13 @@ void MRVRPNode::readROSParameters() {
               paths_filename_.c_str());
   RCLCPP_INFO(this->get_logger(), "Results path: %s", results_path_.c_str());
   RCLCPP_INFO(this->get_logger(), "Tasks filename: %s", tasks_filename_.c_str());
+  RCLCPP_INFO(this->get_logger(), "Depot position: ");
+  if (depot_position_.size() > 0) {
+    RCLCPP_INFO(this->get_logger(), "%.2f %.2f", depot_position_[0],
+                depot_position_[1]);
+  } else {
+    RCLCPP_INFO(this->get_logger(), "None");
+  }
   RCLCPP_INFO(this->get_logger(), "Cost scaling: %.2f", cost_scaling_);
   RCLCPP_INFO(this->get_logger(), "Lambda good trav: %.2f", lambda_good_trav_);
   RCLCPP_INFO(this->get_logger(), "Lambda bad trav: %.2f", lambda_bad_trav_);
@@ -214,7 +234,7 @@ visualization_msgs::msg::MarkerArray MRVRPNode::createTasksMarkers(
   visualization_msgs::msg::MarkerArray msg;
   for (size_t i = 0; i < tasks.size(); ++i) {
     visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "map";
+    marker.header.frame_id = global_frame_;
     marker.header.stamp = this->now();
     marker.ns = "tasks";
     marker.id = i;
@@ -222,7 +242,7 @@ visualization_msgs::msg::MarkerArray MRVRPNode::createTasksMarkers(
     marker.action = visualization_msgs::msg::Marker::MODIFY;
     marker.pose.position.x = tasks[i][0];
     marker.pose.position.y = tasks[i][1];
-    marker.pose.position.z = 0.0;
+    marker.pose.position.z = 0.2;
     marker.pose.orientation.x = 0.0;
     marker.pose.orientation.y = 0.0;
     marker.pose.orientation.z = 0.0;
@@ -231,9 +251,9 @@ visualization_msgs::msg::MarkerArray MRVRPNode::createTasksMarkers(
     marker.scale.y = scale;
     marker.scale.z = scale;
     marker.color.a = 1.0;
-    marker.color.r = 1.0;
-    marker.color.g = 1.0;
-    marker.color.b = 0.0;
+    marker.color.r = 0.98;
+    marker.color.g = 0.64;
+    marker.color.b = 0.168;
     marker.text = std::to_string(i);
     msg.markers.push_back(marker);
   }
@@ -267,7 +287,7 @@ visualization_msgs::msg::MarkerArray MRVRPNode::createPathsMarkers(
   visualization_msgs::msg::MarkerArray msg;
   for (size_t k = 0; k < paths.size(); ++k) {
     visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "map";
+    marker.header.frame_id = global_frame_;
     marker.header.stamp = this->now();
     marker.ns = ns;
     marker.id = k;
@@ -300,7 +320,7 @@ visualization_msgs::msg::MarkerArray MRVRPNode::createTreeMarkers(
   for (size_t i = 0; i < edges.size(); ++i) {
     std::vector<std::vector<float>> edge = edges[i];
     visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "map";
+    marker.header.frame_id = global_frame_;
     marker.header.stamp = this->now();
     marker.ns = ns;
     marker.id = i;
@@ -319,13 +339,13 @@ visualization_msgs::msg::MarkerArray MRVRPNode::createTreeMarkers(
     geometry_msgs::msg::Point p;
     p.x = edge[0][0];
     p.y = edge[0][1];
-    p.z = 0.1;
+    p.z = 0.05;
     marker.points.push_back(p);
 
     // Second point
     p.x = edge[1][0];
     p.y = edge[1][1];
-    p.z = 0.1;
+    p.z = 0.05;
     marker.points.push_back(p);
 
     msg.markers.push_back(marker);
@@ -496,7 +516,7 @@ void MRVRPNode::solveVRP(
   if (publish) {
     auto msg = mr_het_coord_ros::msg::VrpSolution();
     msg.header.stamp = this->now();
-    msg.header.frame_id = "map";
+    msg.header.frame_id = global_frame_;
     msg.ns = method_str + "VRP";
     msg.num_agents = num_vehicles_;
     for (int k = 0; k < num_vehicles_; ++k) {

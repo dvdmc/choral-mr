@@ -21,5 +21,5 @@ windows:
       layout: tiled
       panes:
         - sleep 10; source .venv-sem/bin/activate && source install/setup.bash && ros2 launch sensors_tools_ros semantic_sensor_bag.launch.xml
-        - sleep 10; source install/setup.bash && ros2 launch bloomxai_ros bonxai_mapping.launch.xml config_file:=$(find-pkg-share bloomxai_ros)/config/bloomxai_trident.yaml
+        - sleep 10; source install/setup.bash && ros2 launch bloomxai_ros bonxai_mapping.launch.xml  config_file:=src/Bloomxai/bloomxai_ros/config/bloomxai_trident.yaml
         - source install/setup.bash && ros2 launch sensors_tools_ros republish_compressed.launch.xml override_file:=config/ground_station/qos_override.yaml

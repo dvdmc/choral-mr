@@ -266,7 +266,6 @@ class NARadioEncoder(LangSpatialGlobalImageEncoder):
   @override
   def encode_prompts(self, prompts: List[str]) -> torch.FloatTensor:
     with torch.autocast("cuda", dtype=torch.float16, enabled=self.amp):
-      with torch.no_grad():
         text = self.lang_adaptor.tokenizer(prompts).to(self.device)
         text_features = self.lang_adaptor.encode_text(text)
         text_features /= text_features.norm(dim=-1, keepdim=True)

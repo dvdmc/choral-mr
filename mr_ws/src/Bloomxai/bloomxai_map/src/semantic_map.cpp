@@ -2,6 +2,7 @@
 
 #include <eigen3/Eigen/Geometry>
 #include <unordered_set>
+#include <queue>
 
 namespace Bloomxai {
 
@@ -11,7 +12,8 @@ VoxelGrid<SemCellT>& SemanticMap::grid() {
   return grid_;
 }
 
-SemanticMap::SemanticMap(double resolution, int sem_dim, std::unique_ptr<BaseSemanticOperator> semantic_operator_)
+SemanticMap::SemanticMap(
+    double resolution, int sem_dim, std::unique_ptr<BaseSemanticOperator> semantic_operator_)
     : sem_dim_(sem_dim),
       resolution_(resolution),
       grid_(resolution),
@@ -182,21 +184,85 @@ void SemanticMap::getFreeVoxels(std::vector<CoordT>& coords) {
   grid_.forEachCell(visitor);
 }
 
-void SemanticMap::getOccupiedVoxelsAndSimilarity(int query_id, std::vector<CoordT>& coords, std::vector<float>& similarities) {
+void SemanticMap::getOccupiedVoxelsClassAndSimilarity(
+    int query_id, std::vector<CoordT>& coords, std::vector<int>& labels, std::vector<float>& sims) {
   coords.clear();
-  similarities.clear();
+  labels.clear();
+  sims.clear();
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
     if (cell.occ_prob_log > options_.occupancy_threshold_log) {
       coords.push_back(coord);
-      similarities.push_back(semantic_operator->getSimilarity(cell, query_id));
+      labels.push_back(semantic_operator->argmax(cell));
+      sims.push_back(semantic_operator->getSimilarity(cell, query_id));
     }
   };
   grid_.forEachCell(visitor);
 }
 
+void collapseGoalRegion(std::vector<std::vector<int>>& grid, int goal_code = 22) {
+  int H = grid.size();
+  int W = grid[0].size();
+
+  std::vector<std::pair<int, int>> region;
+  std::queue<std::pair<int, int>> q;
+  std::vector<std::vector<bool>> visited(H, std::vector<bool>(W, false));
+
+  // Find all goal cells (first pass) and BFS
+  for (int y = 0; y < H; y++) {
+    for (int x = 0; x < W; x++) {
+      if (grid[y][x] == goal_code && !visited[y][x]) {
+        // BFS to gather entire connected goal region
+        q.push({x, y});
+        visited[y][x] = true;
+
+        while (!q.empty()) {
+          auto [cx, cy] = q.front();
+          q.pop();
+          region.push_back({cx, cy});
+
+          const int dx[4] = {1, -1, 0, 0};
+          const int dy[4] = {0, 0, 1, -1};
+
+          for (int k = 0; k < 4; k++) {
+            int nx = cx + dx[k];
+            int ny = cy + dy[k];
+
+            if (nx >= 0 && nx < W && ny >= 0 && ny < H && !visited[ny][nx] &&
+                grid[ny][nx] == goal_code) {
+              visited[ny][nx] = true;
+              q.push({nx, ny});
+            }
+          }
+        }
+
+        // Reduce region to a single cell
+        if (!region.empty()) {
+          // Pick center cell
+          int cx_sum = 0, cy_sum = 0;
+          for (auto& p : region) {
+            cx_sum += p.first;
+            cy_sum += p.second;
+          }
+          int cx = cx_sum / region.size();
+          int cy = cy_sum / region.size();
+
+          // Mark all region as free
+          for (auto& p : region) grid[p.second][p.first] = 0;
+
+          // Mark only the representative as goal
+          grid[cy][cx] = goal_code;
+
+          region.clear();
+        }
+      }
+    }
+  }
+}
+
 std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
     const std::vector<float>& min, const std::vector<float>& max, const std::vector<int>& map_size,
-    const std::vector<int>& problematic_classes, float th_z) const {
+    const std::vector<int>& problematic_classes, const std::vector<int>& task_classes,
+    float th_z) const {
   std::vector<std::vector<int>> matrix(map_size[1], std::vector<int>(map_size[0], -1));
 
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
@@ -204,21 +270,24 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
     int grid_coord_y = int(coord.y - (min[1] / resolution_));
     float coord_z_th = th_z / resolution_;
 
-    bool is_problematic = false;
-    for (int c : problematic_classes) {
+    bool is_task = false;
+    for (int c : task_classes) {
       if (semantic_operator->argmax(cell) == c) {
-        is_problematic = true;
+        is_task = true;
         break;
       }
     }
-    //  std::cout << "Coord: " << coord.x << "," << coord.y << "," << coord.z << " grid: " <<
-    //  grid_coord_x
-    //           << "," << grid_coord_y << " size: " << map_size[0] << "," << map_size[1] <<
-    //           std::endl;
-    // std::cout << "Coord Z: " << coord.z << " coord_z_th: " << coord_z_th << std::endl;
+    bool is_problematic = false;
+    if (!is_task) {
+      for (int c : problematic_classes) {
+        if (semantic_operator->argmax(cell) == c) {
+          is_problematic = true;
+          break;
+        }
+      }
+    }
 
-    // std::cout << "Map size: " << map_size[0] << ", " << map_size[1]
-    //           << " Matrix size: " << matrix.size() << ", " << matrix[0].size() << std::endl;
+    //  TODO: Fix this
     if (grid_coord_y < 0 || grid_coord_y >= map_size[1] || grid_coord_x < 0 ||
         grid_coord_x >= map_size[0]) {
       std::cerr << "Out-of-bounds write: (" << grid_coord_x << ", " << grid_coord_y << ")"
@@ -231,12 +300,15 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
       matrix[grid_coord_y][grid_coord_x] = 100;
     } else if (is_problematic && prev_value != 100) {
       matrix[grid_coord_y][grid_coord_x] = 51;
+    } else if (is_task && prev_value != 100 && prev_value != 51) {
+      matrix[grid_coord_y][grid_coord_x] = 22;
     } else if (prev_value != 100 && prev_value != 51) {
       matrix[grid_coord_y][grid_coord_x] = 0;
     }
   };
 
   grid_.forEachCell(visitor);
+  collapseGoalRegion(matrix, 22);
   return matrix;
 }
 

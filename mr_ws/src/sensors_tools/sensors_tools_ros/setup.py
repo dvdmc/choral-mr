@@ -26,6 +26,7 @@ setup(
     entry_points={
         "console_scripts": [
             "semantic_node = sensors_tools_ros.semantic_node:main",
+            "query_server = sensors_tools_ros.query_server:main",
         ],
     },
 )

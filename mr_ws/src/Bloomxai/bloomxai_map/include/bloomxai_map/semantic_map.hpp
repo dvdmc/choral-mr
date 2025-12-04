@@ -49,6 +49,7 @@ struct SemCellT {
 class BaseSemanticOperator {
  public:
   int sem_dim;
+  int queries_size = 0;
 
   BaseSemanticOperator(int sem_dim)
       : sem_dim(sem_dim) {}
@@ -70,7 +71,9 @@ class BaseSemanticOperator {
   virtual bool isReady() const = 0;
 
   // No similarity concept
-  virtual float getSimilarity(const SemCellT& cell, int query_id) const { return 0.0f; };
+  virtual float getSimilarity(const SemCellT& cell, int query_id) const {
+    return 0.0f;
+  };
 };
 
 /**
@@ -184,8 +187,6 @@ class SemanticMap {
 
   void getFreeVoxels(std::vector<Bonxai::CoordT>& coords);
 
-  void getOccupiedVoxelsAndSimilarity(int query_id, std::vector<Bonxai::CoordT>& coords, std::vector<float>& sim);
-
   void serializeToFile(const std::string& filename) const;
 
   void deserializeFromFile(const std::string& filename);
@@ -193,6 +194,7 @@ class SemanticMap {
   std::vector<std::vector<int>> generate2DGridMap(
       const std::vector<float>& min, const std::vector<float>& max,
       const std::vector<int>& map_size, const std::vector<int>& problematic_classes,
+      const std::vector<int>& task_classes,
       float th_z) const;
 
   template <typename PointT>
@@ -236,17 +238,26 @@ class SemanticMap {
     }
   }
 
+  void getOccupiedVoxelsClassAndSimilarity(
+      int query_id, std::vector<Bonxai::CoordT>& coords, std::vector<int>& labels,
+      std::vector<float>& sim);
+
   template <typename PointT>
-  void getOccupiedVoxelsAndSimilarity(int query_id, std::vector<PointT>& points, std::vector<float>& similarities) {
+  void getOccupiedVoxelsClassAndSimilarity(
+      int query_id, std::vector<PointT>& points, std::vector<int>& classes,
+      std::vector<float>& similarities) {
     thread_local std::vector<Bonxai::CoordT> coords;
+    thread_local std::vector<int> labels;
     thread_local std::vector<float> sim;
     coords.clear();
+    labels.clear();
     sim.clear();
-    getOccupiedVoxelsAndSimilarity(query_id, coords, sim);
+    getOccupiedVoxelsClassAndSimilarity(query_id, coords, labels, sim);
     for (size_t i = 0; i < coords.size(); i++) {
       const auto coord = coords[i];
       const auto p = grid_.coordToPos(coord);
       points.emplace_back(p.x, p.y, p.z);
+      classes.emplace_back(labels[i]);
       similarities.emplace_back(sim[i]);
     }
   }
@@ -545,7 +556,7 @@ class ProbabilitySemanticOperator : public BaseSemanticOperator {
     cell.semantics =
         cell.semantics.cwiseMax(options_.clamp_min_prob).cwiseMin(options_.clamp_max_prob);
 
-    // Normalize 
+    // Normalize
     cell.semantics /= cell.semantics.sum();
   }
 
@@ -567,17 +578,19 @@ class ProbabilitySemanticOperator : public BaseSemanticOperator {
     return maxIndex;
   }
 
-  bool isReady() const override { return true; }
+  bool isReady() const override {
+    return true;
+  }
 };
 
 class FeatureSemanticOperator : public BaseSemanticOperator {
  public:
   struct FeatOptions {
     // Occupancy threshold to initialize the vector and remove it to save space
-    int occ_thres = SemanticMap::logods(0.5f);
+    int occ_thres_logods = SemanticMap::logods(0.5f);
 
     int num_queries = 0;
-    Eigen::MatrixXf query_embeddings = Eigen::MatrixXf::Zero(0, 0);
+    Eigen::Matrix<float, -1, -1, Eigen::RowMajor> query_embeddings = Eigen::Matrix<float, -1, -1, Eigen::RowMajor>::Zero(0, 0);
   };
 
  private:
@@ -592,12 +605,8 @@ class FeatureSemanticOperator : public BaseSemanticOperator {
       return;
     try {
       const FeatOptions& opt = std::any_cast<const FeatOptions&>(options);
-      if (opt.query_embeddings.cols() != sem_dim ||
-          opt.query_embeddings.rows() != opt.num_queries) {
-        std::cout << "query_embeddings dimension mismatch" << std::endl;
-        return;
-      }
       options_ = opt;
+      queries_size = opt.num_queries;
     } catch (const std::bad_any_cast& e) {
       std::cout << "Invalid options type for FeatureSemanticOperator" << std::endl;
       return;
@@ -611,21 +620,12 @@ class FeatureSemanticOperator : public BaseSemanticOperator {
   }
 
   void integrateHit(SemCellT& cell, const VSemantics& measurement) const override {
-    if (cell.occ_prob_log < options_.occ_thres) {
-      cell.count = 0;
-      cell.semantics.setZero();
-      return;
-    }
     cell.count++;
-    float inv = 1.0f / cell.count;
-    cell.semantics += (measurement - cell.semantics) * inv;
+    float inv_count = 1.0f / cell.count;
+    cell.semantics += inv_count * (measurement - cell.semantics);
   }
 
   void integrateMiss(SemCellT& cell) const override {
-    if (cell.occ_prob_log < options_.occ_thres) {
-      cell.count = 0;
-      cell.semantics.setZero();
-    }
   }
 
   int argmax(const SemCellT& cell) const override {
@@ -633,17 +633,16 @@ class FeatureSemanticOperator : public BaseSemanticOperator {
       std::cerr << "Query embeddings are empty\n";
       return 0;
     }
-
-    // similarities = query_embedding_i dot cell.semantics
-    Eigen::VectorXf similarities(options_.query_embeddings.rows());
-    for (int i = 0; i < options_.query_embeddings.rows(); ++i) {
-      similarities(i) = options_.query_embeddings.row(i).dot(cell.semantics);
+    int max_id = 0;
+    float max_sim = 0.0f;
+    for (int i = 0; i < options_.num_queries; i++) {
+      float similarity = getSimilarity(cell, i);
+      if (similarity > max_sim) {
+        max_sim = similarity;
+        max_id = i;
+      }
     }
-
-    Eigen::Index maxIndex;
-    similarities.maxCoeff(&maxIndex);
-
-    return static_cast<int>(maxIndex);
+    return max_id;
   }
 
   float getSimilarity(const SemCellT& cell, int query_id) const {
@@ -651,14 +650,27 @@ class FeatureSemanticOperator : public BaseSemanticOperator {
       std::cerr << "Query embeddings are empty\n";
       return 0.0f;
     }
-    if (query_id >= options_.query_embeddings.rows()) {
+    if (query_id < 0 || query_id >= options_.query_embeddings.rows()) {
       std::cerr << "query_id out of range\n";
       return 0.0f;
     }
-    return options_.query_embeddings.row(query_id).dot(cell.semantics);
+
+    Eigen::RowVectorXf q = options_.query_embeddings.row(query_id);
+
+    const Eigen::VectorXf& c = cell.semantics;
+
+    float q_norm = q.norm();
+    float c_norm = c.norm();
+
+    if (q_norm == 0.0f || c_norm == 0.0f)
+      return 0.0f;
+
+    return q.dot(c) / (q_norm * c_norm);
   }
 
-  bool isReady() const override { options_.num_queries > 0 && options_.query_embeddings.rows() > 0; }
+  bool isReady() const override {
+    return options_.num_queries > 0 && options_.query_embeddings.rows() > 0;
+  }
 };
 
 }  // namespace Bloomxai

@@ -9,9 +9,10 @@ from .semantic_labels import (
     get_ade20k_color_map,
     get_cityscapes_color_map,
     get_coco_color_map,
+    get_my_color_map,
     get_nyu40_color_map,
     get_voc_color_map,
-    get_generic_color_map,
+    get_my_color_map,
 )
 from .semantic_labels import (
     get_ade20k_labels,
@@ -172,13 +173,13 @@ def get_labels_color_map(semantic_dataset_type: SemanticDatasetType, **kwargs):
     elif semantic_dataset_type == "nyu40":
         return get_nyu40_color_map()
     elif semantic_dataset_type == "custom_set":
-        return get_coco_color_map(kwargs["num_classes"])
+        return get_my_color_map(kwargs["num_classes"])
     elif semantic_dataset_type == "feature_similarity":
         if "num_classes" not in kwargs:
             raise ValueError(
                 "num_classes must be provided if semantic_dataset_type is CUSTOM_SET"
             )
-        return get_generic_color_map(kwargs["num_classes"])
+        return get_my_color_map(kwargs["num_classes"])
     else:
         raise ValueError("Unknown dataset name: {}".format(semantic_dataset_type))
 

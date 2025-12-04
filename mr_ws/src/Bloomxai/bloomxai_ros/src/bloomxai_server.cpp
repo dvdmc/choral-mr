@@ -72,7 +72,7 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
     sem_dim_desc.description = "Semantic dimension";
     rcl_interfaces::msg::IntegerRange sem_dim_range;
     sem_dim_range.from_value = 1;
-    sem_dim_range.to_value = 1024;
+    sem_dim_range.to_value = 1200;
     sem_dim_desc.integer_range.push_back(sem_dim_range);
     sem_dim_ = declare_parameter("sem_dim", 100, sem_dim_desc);
     initial_sem_val_ = 1.0f / sem_dim_;
@@ -120,9 +120,22 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   rcl_interfaces::msg::ParameterDescriptor semantic_type_desc;
   semantic_type_desc.description = "Semantic type used in the map: probabilities or features";
   const std::string semantic_type_str =
-      declare_parameter("semantic_type", "probabilities", semantic_type_desc);
+      declare_parameter("semantics.semantic_type", "probabilities", semantic_type_desc);
   // Transform string to enum
   semantic_type_ = semantic_type_map.at(semantic_type_str);
+
+  // Declare the set of complicated and task classes
+  std::vector<int64_t> tmp;
+  this->declare_parameter("semantics.complicated_classes", std::vector<int64_t>{1});
+  if(!this->get_parameter("semantics.complicated_classes", tmp)){
+    RCLCPP_ERROR(this->get_logger(), "Problematic classes not configured, using default!");
+  }
+  problematic_classes_.assign(tmp.begin(), tmp.end());
+  this->declare_parameter("semantics.task_classes", std::vector<int64_t>{2});
+  if(!this->get_parameter("semantics.task_classes", tmp)){
+    RCLCPP_ERROR(this->get_logger(), "Task classes not configured, using default!");
+  }
+  task_classes_.assign(tmp.begin(), tmp.end());
 
   // Declar the rest of paramters
   rcl_interfaces::msg::ParameterDescriptor alpha_reg_desc;
@@ -151,13 +164,13 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   sem_prob_max_desc.floating_point_range.push_back(sem_prob_max_range);
   const double sem_thres_max = declare_parameter("semantics.max", 0.97, sem_prob_max_desc);
 
-  rcl_interfaces::msg::ParameterDescriptor prob_th_desc;
-  prob_th_desc.description = "Threshold for deleting semantics when dynamically building a map";
-  rcl_interfaces::msg::FloatingPointRange prob_th_range;
-  prob_th_range.from_value = 0.0;
-  prob_th_range.to_value = 1.0;
-  prob_th_desc.floating_point_range.push_back(prob_th_range);
-  const double thres = declare_parameter("semantics.thres", 0.5, prob_th_desc);
+  rcl_interfaces::msg::ParameterDescriptor sem_occ_th_desc;
+  sem_occ_th_desc.description = "Threshold for deleting semantics when dynamically building a map";
+  rcl_interfaces::msg::FloatingPointRange sem_prob_th_range;
+  sem_prob_th_range.from_value = 0.0;
+  sem_prob_th_range.to_value = 1.0;
+  sem_occ_th_desc.floating_point_range.push_back(sem_prob_th_range);
+  const double sem_occ_thres = declare_parameter("semantics.occ_thres", 0.5, sem_occ_th_desc);
 
   // Add an index for similarity
   rcl_interfaces::msg::ParameterDescriptor sim_index_desc;
@@ -188,7 +201,7 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
     RCLCPP_INFO(get_logger(), "sem_thres_min %f", sem_thres_min);
     RCLCPP_INFO(get_logger(), "sem_thres_max %f", sem_thres_max);
   } else if (semantic_type_ == SemanticType::FEATURES) {
-    RCLCPP_INFO(get_logger(), "sem_thres %f", thres);
+    RCLCPP_INFO(get_logger(), "sem_thres %f", sem_occ_thres);
     RCLCPP_INFO(get_logger(), "sim_index %d", sim_index);
   }
 
@@ -207,7 +220,7 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
     semantic_operator = std::make_unique<Bloomxai::FeatureSemanticOperator>(sem_dim_);
 
     Bloomxai::FeatureSemanticOperator::FeatOptions feat_options;
-    feat_options.occ_thres = bloomxai_->logods(thres);
+    feat_options.occ_thres_logods = bloomxai_->logods(sem_occ_thres);
     semantic_operator->setOptions(feat_options);
   }
 
@@ -282,7 +295,7 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
 
   // create timer for publishing visualization
   vis_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(300), std::bind(&BloomxaiServer::publishAll, this));
+      std::chrono::milliseconds(1000), std::bind(&BloomxaiServer::publishAll, this));
 }
 
 bool BloomxaiServer::setQueriesCallback(
@@ -293,18 +306,22 @@ bool BloomxaiServer::setQueriesCallback(
 
   Bloomxai::FeatureSemanticOperator::FeatOptions options;
   // Read param
-  int occ_thres = get_parameter("semantics.occ_thres").as_int();
-  options.occ_thres = occ_thres;
+  double occ_thres = get_parameter("semantics.occ_thres").as_double();
+  options.occ_thres_logods = bloomxai_->logods(occ_thres);
   options.num_queries = num_queries;
   if (num_queries * sem_dim_ != flat_embeddings.size()) {
     response->success = false;
     response->message = "flat_embeddings dimension mismatch";
     return false;
   }
-  options.query_embeddings =
-      Eigen::Map<Eigen::MatrixXf>(flat_embeddings.data(), num_queries, sem_dim_);
+  Eigen::Map<Eigen::Matrix<float, -1, -1, Eigen::RowMajor>> temp_map(
+      flat_embeddings.data(), num_queries, sem_dim_);
+
+  options.query_embeddings.resize(num_queries, sem_dim_);
+  options.query_embeddings = temp_map;
   bloomxai_->semantic_operator->setOptions(options);
   response->success = true;
+
   response->message = "Queries set successfully.";
   return true;
 }
@@ -330,11 +347,7 @@ bool BloomxaiServer::sendGridMap() const {
   std::vector<float> min, max;
   std::vector<int> map_size;
   std::vector<std::vector<int>> matrix;
-  std::vector<int> problematic_classes = {2, 3};
-  // std::vector<std::vector<float>> tasks = {{0, -1},      {-1.5, -2.3}, {-1.5, -4.5}, {0.22,
-  // -2.22},
-  //                                          {0.16, -4.2}, {1.27, -1},   {1.93, -3.3}, {1.75,
-  //                                          -4.24}};
+  
   double th_z = 0.8;
 
   {
@@ -349,25 +362,8 @@ bool BloomxaiServer::sendGridMap() const {
       max[i] -= bloomxai_->getResolution() / 2.0;
     }
 
-    matrix = bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes, th_z);
+    matrix = bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes_, task_classes_, th_z);
   }
-
-  // Add tasks
-  // for (int i = 0; i < tasks.size(); i++) {
-  //   if (tasks[i][0] < min[0] || tasks[i][0] > max[0] || tasks[i][1] < min[1] ||
-  //       tasks[i][1] > max[1]) {
-  //     continue;
-  //   }
-  //   // std::cout << "Adding task: " << tasks[i][0] << ", " << tasks[i][1] << std::endl;
-  //   int x = int((tasks[i][0] - min[0]) / bloomxai_->getResolution());
-  //   int y = int((tasks[i][1] - min[1]) / bloomxai_->getResolution());
-  //   if (y >= 0 && y < static_cast<int>(matrix.size()) && x >= 0 &&
-  //       x < static_cast<int>(matrix[y].size())) {
-  //     matrix[y][x] = 22;
-  //   } else {
-  //     std::cerr << "Warning: task index (" << x << ", " << y << ") out of bounds\n";
-  //   }
-  // }
 
   nav_msgs::msg::OccupancyGrid grid_msg;
 
@@ -410,8 +406,6 @@ bool BloomxaiServer::savePGMMapCallback(
     const std::shared_ptr<bloomxai_ros::srv::SaveMap::Request> request,
     const std::shared_ptr<bloomxai_ros::srv::SaveMap::Response> response) {
   try {
-    // TODO: Add tasks
-    std::vector<int> problematic_classes = {2, 3};
     RCLCPP_INFO(get_logger(), "Saving PGM map to %s", request->filename.c_str());
 
     auto filename = request->filename;
@@ -444,7 +438,7 @@ bool BloomxaiServer::savePGMMapCallback(
     std::cout << "Resolution: " << bloomxai_->getResolution() << std::endl;
     std::cout << "Map size: [" << map_size[0] << "," << map_size[1] << "]" << std::endl;
 
-    auto matrix = bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes, th_z);
+    auto matrix = bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes_, task_classes_, th_z);
 
     for (int i = map_size[1] - 1; i >= 0; i--) {
       for (int j = 0; j < map_size[0]; j++) {
@@ -453,7 +447,7 @@ bool BloomxaiServer::savePGMMapCallback(
           value = 255;
         } else if (value == 51) {
           value = 80;
-        } else if (value == 225) {
+        } else if (value == 22) {
           value = 200;
         } else {
           value = 0;
@@ -496,7 +490,7 @@ bool BloomxaiServer::loadMapCallback(
 }
 
 void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud) {
-  const auto start_time = rclcpp::Clock{}.now();
+  const auto start = rclcpp::Clock{}.now();
 
   RCLCPP_INFO(get_logger(), "Received cloud with %d points", cloud->width * cloud->height);
 
@@ -607,7 +601,7 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
     }
   }
 
-  double total_elapsed = (rclcpp::Clock{}.now() - start_time).seconds();
+  double total_elapsed = (rclcpp::Clock{}.now() - start).seconds();
   RCLCPP_INFO(get_logger(), "Pointcloud insertion in Bonxai done, %f sec)", total_elapsed);
 
   // publishAll();
@@ -650,7 +644,7 @@ rcl_interfaces::msg::SetParametersResult BloomxaiServer::onParameter(
     bloomxai_->semantic_operator->setOptions(prob_options);
   } else if (semantic_type_ == SemanticType::FEATURES) {
     // Features
-    // int occ_thres = get_parameter("semantics.occ_thres").as_int();
+    // double occ_thres = get_parameter("semantics.occ_thres").as_double();
     // update_param(parameters, "semantics.occ_thres", occ_thres);
     int sim_query_index = get_parameter("semantics.sim_query_index").as_int();
     update_param(parameters, "semantics.sim_query_index", sim_query_index);
@@ -672,10 +666,10 @@ rcl_interfaces::msg::SetParametersResult BloomxaiServer::onParameter(
 }
 
 void BloomxaiServer::publishAll() {
+  auto start = std::chrono::steady_clock::now();
   const auto rostime = this->now();
-  thread_local std::vector<Eigen::Vector3d> bloomxai_result, similarity_result;
+  thread_local std::vector<Eigen::Vector3d> bloomxai_result;
   bloomxai_result.clear();
-  similarity_result.clear();
   thread_local std::vector<int> labels;
   thread_local std::vector<float> similarities;
   labels.clear();
@@ -687,46 +681,49 @@ void BloomxaiServer::publishAll() {
       std::cout << "Semantics are not ready for publishing" << std::endl;
       return;
     }
-    bloomxai_->getOccupiedVoxelsAndClass(bloomxai_result, labels);
-    if (semantic_type_ == SemanticType::FEATURES) {
-      bloomxai_->getOccupiedVoxelsAndSimilarity(sim_query_index_, similarity_result, similarities);
-    }
+    bloomxai_->getOccupiedVoxelsClassAndSimilarity(
+        sim_query_index_, bloomxai_result, labels, similarities);
   }
+  auto now = std::chrono::steady_clock::now();
+  auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+  RCLCPP_INFO(get_logger(), "Getting data took %d ms", elapsed);
 
   if (bloomxai_result.size() <= 1) {
     RCLCPP_WARN(get_logger(), "Nothing to publish, bloomxai is empty");
     return;
   }
 
-  bool publish_point_cloud =
-      (latched_topics_ || point_cloud_pub_->get_subscription_count() +
-                                  point_cloud_pub_->get_intra_process_subscription_count() >
-                              0);
+  // bool publish_point_cloud =
+  //     (latched_topics_ || point_cloud_pub_->get_subscription_count() +
+  //                                 point_cloud_pub_->get_intra_process_subscription_count() >
+  //                             0);
 
   // Publish Point Cloud
-  if (publish_point_cloud) {
-    thread_local pcl::PointCloud<PCLPointRGB> pcl_cloud;
-    pcl_cloud.clear();
+  // if (publish_point_cloud) {
+  //   thread_local pcl::PointCloud<PCLPointRGB> pcl_cloud;
+  //   pcl_cloud.clear();
 
-    for (size_t i = 0; i < bloomxai_result.size(); i++) {
-      const auto& voxel = bloomxai_result[i];
-      if (voxel.z() >= occupancy_min_z_ && voxel.z() <= occupancy_max_z_) {
-        std::vector<uint8_t> color = label_to_rgb_[labels[i]];
-        pcl_cloud.push_back(
-            PCLPointRGB(voxel.x(), voxel.y(), voxel.z(), color[0], color[1], color[2]));
-      }
-    }
+  //   for (size_t i = 0; i < bloomxai_result.size(); i++) {
+  //     const auto& voxel = bloomxai_result[i];
+  //     if (voxel.z() >= occupancy_min_z_ && voxel.z() <= occupancy_max_z_) {
+  //       std::vector<uint8_t> color = label_to_rgb_[labels[i]];
+  //       pcl_cloud.push_back(
+  //           PCLPointRGB(voxel.x(), voxel.y(), voxel.z(), color[0], color[1], color[2]));
+  //     }
+  //   }
 
-    PointCloud2 cloud;
-    pcl::toROSMsg(pcl_cloud, cloud);
-    cloud.header.frame_id = world_frame_id_;
-    cloud.header.stamp = rostime;
-    point_cloud_pub_->publish(cloud);
+  //   PointCloud2 cloud;
+  //   pcl::toROSMsg(pcl_cloud, cloud);
+  //   cloud.header.frame_id = world_frame_id_;
+  //   cloud.header.stamp = rostime;
+  //   point_cloud_pub_->publish(cloud);
 
-    RCLCPP_INFO(get_logger(), "Published occupancy grid with %ld voxels", pcl_cloud.points.size());
-  }
+  //   RCLCPP_INFO(get_logger(), "Published occupancy grid with %ld voxels",
+  //   pcl_cloud.points.size());
+  // }
 
   // Publish Cube Marker
+  start = std::chrono::steady_clock::now();
   thread_local visualization_msgs::msg::Marker marker;
   marker.header.frame_id = world_frame_id_;
   marker.header.stamp = rostime;
@@ -771,7 +768,11 @@ void BloomxaiServer::publishAll() {
       0) {
     sendGridMap();
   }
+  now = std::chrono::steady_clock::now();
+  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
+  RCLCPP_INFO(get_logger(), "Publishing classes took %f ms", elapsed);
 
+  start = std::chrono::steady_clock::now();
   if (semantic_type_ == SemanticType::FEATURES) {
     // Publish similarity
     // Publish Cube Marker
@@ -789,23 +790,58 @@ void BloomxaiServer::publishAll() {
     marker.points.clear();
     marker.colors.clear();
 
-    for (size_t i = 0; i < similarity_result.size(); ++i) {
-      const auto& voxel = similarity_result[i];
+    // --- Phase 1: Gather Valid Voxels and Find Max Similarity ---
+    std::vector<geometry_msgs::msg::Point> valid_points;
+    std::vector<float> valid_similarities;
+    float max_similarity = 0.0f;
+
+    for (size_t i = 0; i < bloomxai_result.size(); ++i) {
+      const auto& voxel = bloomxai_result[i];
+      float current_similarity = similarities[i];
+
       if (voxel.z() >= occupancy_min_z_ && voxel.z() <= occupancy_max_z_) {
+        // Store the point coordinates
         geometry_msgs::msg::Point p;
         p.x = voxel.x();
         p.y = voxel.y();
         p.z = voxel.z();
-        marker.points.push_back(p);
+        valid_points.push_back(p);
 
-        std_msgs::msg::ColorRGBA color;
-        auto rgb = sim_to_rgb_(similarities[i]);
-        color.r = rgb[0] / 255.0f;
-        color.g = rgb[1] / 255.0f;
-        color.b = rgb[2] / 255.0f;
-        color.a = 1.0f;
-        marker.colors.push_back(color);
+        // Store the similarity value
+        valid_similarities.push_back(current_similarity);
+
+        // Update the maximum similarity found so far
+        if (current_similarity > max_similarity) {
+          max_similarity = current_similarity;
+        }
       }
+    }
+
+    if (max_similarity == 0.0f) {
+      // Exit the scope if no voxels are valid or max similarity is zero.
+      // The marker remains empty.
+      return;
+    }
+
+    // --- Phase 2: Normalize and Visualize ---
+
+    for (size_t i = 0; i < valid_points.size(); ++i) {
+      // 1. Normalize the similarity value
+      float normalized_sim = valid_similarities[i] / max_similarity;
+
+      // 2. Add the point to the marker
+      marker.points.push_back(valid_points[i]);
+
+      // 3. Calculate and add color
+      std_msgs::msg::ColorRGBA color;
+      // std::cout << normalized_sim << std::endl; // Use normalized value here
+      auto rgb = sim_to_rgb_(normalized_sim);
+
+      color.r = rgb[0] / 255.0f;
+      color.g = rgb[1] / 255.0f;
+      color.b = rgb[2] / 255.0f;
+      color.a = 1.0f;
+      marker.colors.push_back(color);
     }
 
     if (marker_pub_->get_subscription_count() +
@@ -815,6 +851,10 @@ void BloomxaiServer::publishAll() {
       RCLCPP_INFO(get_logger(), "Published marker with %ld cubes", marker.points.size());
     }
   }
+  // Print timings
+  now = std::chrono::steady_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
+  RCLCPP_INFO(get_logger(), "Publishing similarities took %ld ms", duration.count());
 }
 
 bool BloomxaiServer::resetSrv(

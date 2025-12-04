@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+import time
 from typing import List, Optional, Tuple
 import numpy as np
 
 import torch
+from torch.nn import functional as F
 from PIL import Image
 from torchvision import transforms
 from sensors_tools.inference.models.naradio.naradio import NARadioEncoder
@@ -42,7 +44,7 @@ class SemanticSegmentationNaradioConfig(SemanticSegmentationBaseConfig):
     lang_model: str = "siglip"
     """ Naradio language model: siglip, clip """
 
-    input_resolution: Tuple[int,int] = (512,512)
+    input_resolution: Tuple[int,int] = (720,720)
     """ Input resolution of the model """
 
     colors: Optional[List[List[int]]] = None
@@ -106,8 +108,10 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
             # TODO: We have to add the prompt engineered ones
             self.label_names = get_labels_name(self.cfg.semantic_dataset_type)
 
-        self.text_features = model.encode_labels(self.label_names)
-        print(self.text_features.shape)
+        with torch.no_grad():
+            print(f"Input to encode: {self.label_names}")
+            self.text_features = model.encode_labels(self.label_names)
+
         super().__init__(model, transform, self.device, self.cfg.semantic_feature_type)
 
     def init_model(
@@ -148,42 +152,49 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
             print("SemanticSegmentationNaradio: Using CPU")
         return device
 
+    def compute_similarity(self, feat_map):
+        # Flatten feat_map_resized keeping its shape to recover later
+        N,C = self.text_features.shape
+        _, H, W = feat_map.shape
+        M = H * W
+
+        feat_map_flat = feat_map.reshape(C, M).T
+        sim_matrix_flat = compute_cos_sim(self.text_features, feat_map_flat, softmax=True)
+        sim_matrix_flat = sim_matrix_flat.T
+        probs = sim_matrix_flat.reshape(N, H, W)
+
+        return probs
+    
     @torch.no_grad()
     def infer(self, image):
         prev_width = image.shape[1]
         prev_height = image.shape[0]
-        recover_size = transforms.Resize(
+
+        recover_size = torch.nn.Upsample(
             (prev_height, prev_width),
-            interpolation=transforms.InterpolationMode.NEAREST,
+            mode="nearest",
         )
+        
         image_pil = Image.fromarray(image)
         img_t = self.transform(image_pil).unsqueeze(0).to(self.device)
 
         feat_map = self.model.encode_image_to_feat_map(img_t)
-        lang_aligned_feat_map = self.model.align_spatial_features_with_language(feat_map)
-        lang_aligned_feat_map = lang_aligned_feat_map.squeeze(0).permute(1, 2, 0)
+        feat_map = self.model.align_spatial_features_with_language(feat_map)
+        probs = self.compute_similarity(feat_map[0]).unsqueeze(0)
+        # TODO(anonym): Moving to CPU takes 0.8s and it's the biggest bottleneck
+        self.labels = recover_size(probs)[0].permute(1, 2, 0).argmax(dim=-1).cpu().numpy() # Save to show if needed
 
-        print(f"shapes: {feat_map.shape}, {lang_aligned_feat_map.shape}")
-        torch.cuda.empty_cache()
         if self.semantic_feature_type == "feature_vector":
-            self.semantics = recover_size(lang_aligned_feat_map).permute(2, 0, 1).cpu().numpy()
+            self.semantics = recover_size(feat_map)[0].permute(1, 2, 0).cpu().numpy()
             return self.semantics
-        # Flatten feat_map_resized keeping its shape to recover later
-        N,C = self.text_features.shape
-        H, W, _ = lang_aligned_feat_map.shape
-        M = H * W
-        feat_map_flat = lang_aligned_feat_map.reshape(M, C)
-        sim_matrix_flat = compute_cos_sim(self.text_features, feat_map_flat, softmax=True)
-        sim_matrix_flat = sim_matrix_flat.T
-        probs = sim_matrix_flat.reshape(N, H, W)
 
         if self.semantic_feature_type == "probability_vector":
             self.semantics = recover_size(probs).permute(1, 2, 0).cpu().numpy()
             return self.semantics
 
         # Get the label
-        pred = probs.argmax(dim=0)
-        self.semantics = recover_size(pred).cpu().numpy()
+        pred = self.labels
+        self.semantics = pred
 
         return self.semantics
 
@@ -213,10 +224,8 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
                 rgb_image=rgb_image,
             )
         elif semantic_feature_type == "feature_vector":
-            probs = compute_cos_sim(self.text_features, semantics, softmax=True)
-            labels = probs.argmax(dim=-1)
             return labels_to_image(
-                labels,
+                self.labels, # Do this trick to speed up things atm TODO
                 self.semantics_color_map,
                 bgr=bgr,
                 overlay=overlay,
@@ -229,4 +238,4 @@ class SemanticSegmentationNaradio(SemanticSegmentationBase):
         elif self.semantic_feature_type == "probability_vector":
             return self.semantics_color_map.shape[0]
         elif self.semantic_feature_type == "feature_vector":
-            return self.text_features.shape[0] # TODO: Or not
+            return self.text_features.shape[1] # Dimensions

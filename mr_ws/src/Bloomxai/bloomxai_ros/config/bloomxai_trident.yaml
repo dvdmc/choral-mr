@@ -1,6 +1,6 @@
 /**:
   ros__parameters:
-    resolution: 0.05
+    resolution: 0.1
     frame_id: "earth"
     base_frame_id: "camera_link"
     sem_dim: 4
@@ -19,4 +19,10 @@
     latch: false
 
     semantics:
-      alpha_reg: 0.0
+      semantic_type: probabilities
+      alpha_reg: 0.3
+      min: 0.12
+      max: 0.97
+
+      problematic_classes: [1,2] # ['floor','cable','pebbles', 'animal']
+      task_classes: [3] # ['animal']

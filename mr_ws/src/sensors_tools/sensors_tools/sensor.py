@@ -98,12 +98,11 @@ class SemanticSegmentationSensor:
         if not self.bridge.ready:
             return None
 
-        start = time.time()
         data = self.bridge.get_data()
         if data is None:
             return None
 
-        print(f"Time to get data: {time.time() - start}")
+
         img = data["rgb"]
         if "semantic" in self.cfg.bridge_cfg.data_types:
             assert (
@@ -113,7 +112,6 @@ class SemanticSegmentationSensor:
             start = time.time()
             semantics = self.inference_model.infer(img)
             print(f"Time to get prediction: {time.time() - start}")
-            print(f"Sanity check values: {semantics.max()} - {semantics.min()}")
 
             # NOTE: This is now handled by the bridge
             # if self.gt_labels_mapper is not None and "semantic_gt" in data:

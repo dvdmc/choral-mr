@@ -120,6 +120,9 @@ class BloomxaiServer : public rclcpp::Node {
   int sem_dim_;
   int num_queries_;
   int sim_query_index_;
+  std::vector<int> problematic_classes_;
+  std::vector<int> task_classes_;
+
   float initial_sem_val_;
   std::vector<std::vector<uint8_t>> label_to_rgb_;
   std::function<std::vector<uint8_t>(float)> sim_to_rgb_;

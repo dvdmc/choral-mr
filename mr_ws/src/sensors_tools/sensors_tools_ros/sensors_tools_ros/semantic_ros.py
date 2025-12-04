@@ -625,6 +625,7 @@ class SemanticNode(Node):
                 print(e)
             # Publish point cloud
             points_pcd, points_RGB = self.pcd_from_rgb_depth(data["rgb"], data["depth"])
+            
             if self.publish_freespace_point_cloud:
                 free_pcd_msg = self.generate_freespace_point_cloud_msg(
                     data["depth"], timestamp
@@ -635,6 +636,7 @@ class SemanticNode(Node):
                 assert (
                     self.sensor.cfg.inference_cfg is not None
                 ), "Inference not configured!"
+
                 pcd_msg = self.generate_point_cloud_semantics_msg(
                     points_pcd,
                     points_RGB,
@@ -643,7 +645,6 @@ class SemanticNode(Node):
                     timestamp,
                 )
                 self.pub_point_cloud.publish(pcd_msg)
-                # print("Send point cloud with: ", pcd_msg.width, " points")
             else:
                 pcd_msg = self.generate_point_cloud_msg(
                     points_pcd, points_RGB, timestamp

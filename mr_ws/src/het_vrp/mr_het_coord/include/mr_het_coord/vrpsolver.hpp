@@ -90,14 +90,14 @@ class VRPSolver {
   static constexpr int64_t IMPOSIBLE_COST =
       1e10;  // As a prohibitive value that can also be converted to double
 
-  void makeAsymmetric_(std::vector<std::vector<int64_t>> matrix) const {
+  void makeAsymmetric_(std::vector<std::vector<int64_t>> &matrix) const {
     for (size_t i = 0; i < matrix.size(); ++i) {
       matrix[i][0] = 0;  // Going from any node to the virtual depot is free
     }
   }
 
   void makeAsymmetric_(
-      std::vector<std::vector<std::vector<int64_t>>> matrix) const {
+      std::vector<std::vector<std::vector<int64_t>>> &matrix) const {
     for (size_t k = 0; k < matrix.size(); ++k) {
       for (size_t i = 0; i < matrix[k].size(); ++i) {
         matrix[k][i][0] =

@@ -6,12 +6,13 @@ Panels:
       Expanded:
         - /Global Options1
         - /RGB1/Topic1
+        - /TF1/Frames1
         - /PointCloud21/Topic1
         - /BloomxaiMarker1/Namespaces1
-        - /MarkerArray1/Status1
+        - /MarkerArray1
         - /MarkerArray1/Namespaces1
       Splitter Ratio: 0.5009041428565979
-    Tree Height: 451
+    Tree Height: 252
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -29,7 +30,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: PointCloud2
+    SyncSource: ""
 Visualization Manager:
   Class: ""
   Displays:
@@ -79,6 +80,20 @@ Visualization Manager:
         Reliability Policy: Best Effort
         Value: /drone1/camera/aligned_depth_to_color/image_raw/compressedDepth
       Value: true
+    - Class: rviz_default_plugins/Image
+      Enabled: true
+      Max Value: 1
+      Median window: 5
+      Min Value: 0
+      Name: Semantics
+      Normalize Range: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /camera_sensor/semantic/image_raw
+      Value: true
     - Class: rviz_default_plugins/TF
       Enabled: true
       Filter (blacklist): ""
@@ -86,9 +101,13 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_link:
+        base_footprint:
           Value: false
+        base_link:
+          Value: true
         base_link_frd:
+          Value: false
+        base_mocap:
           Value: false
         camera_aligned_depth_to_infra1_frame:
           Value: false
@@ -110,6 +129,16 @@ Visualization Manager:
           Value: false
         camera_link:
           Value: true
+        caster_back_link:
+          Value: false
+        caster_front_link:
+          Value: false
+        cliff_sensor_front_link:
+          Value: false
+        cliff_sensor_left_link:
+          Value: false
+        cliff_sensor_right_link:
+          Value: false
         drone1/base_link:
           Value: true
         drone1/base_link_frd:
@@ -124,6 +153,54 @@ Visualization Manager:
           Value: false
         earth:
           Value: true
+        gyro_link:
+          Value: false
+        map:
+          Value: false
+        odom:
+          Value: false
+        plate_bottom_link:
+          Value: false
+        plate_middle_link:
+          Value: false
+        plate_top_link:
+          Value: false
+        pole_bottom_0_link:
+          Value: false
+        pole_bottom_1_link:
+          Value: false
+        pole_bottom_2_link:
+          Value: false
+        pole_bottom_3_link:
+          Value: false
+        pole_bottom_4_link:
+          Value: false
+        pole_bottom_5_link:
+          Value: false
+        pole_kinect_0_link:
+          Value: false
+        pole_kinect_1_link:
+          Value: false
+        pole_middle_0_link:
+          Value: false
+        pole_middle_1_link:
+          Value: false
+        pole_middle_2_link:
+          Value: false
+        pole_middle_3_link:
+          Value: false
+        pole_top_0_link:
+          Value: false
+        pole_top_1_link:
+          Value: false
+        pole_top_2_link:
+          Value: false
+        pole_top_3_link:
+          Value: false
+        wheel_left_link:
+          Value: false
+        wheel_right_link:
+          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -155,6 +232,67 @@ Visualization Manager:
                   {}
               drone1/odom_ned:
                 {}
+          map:
+            odom:
+              base_footprint:
+                base_link:
+                  base_link_frd:
+                    {}
+                  caster_back_link:
+                    {}
+                  caster_front_link:
+                    {}
+                  cliff_sensor_front_link:
+                    {}
+                  cliff_sensor_left_link:
+                    {}
+                  cliff_sensor_right_link:
+                    {}
+                  gyro_link:
+                    {}
+                  plate_bottom_link:
+                    {}
+                  plate_middle_link:
+                    {}
+                  plate_top_link:
+                    base_mocap:
+                      {}
+                  pole_bottom_0_link:
+                    {}
+                  pole_bottom_1_link:
+                    {}
+                  pole_bottom_2_link:
+                    {}
+                  pole_bottom_3_link:
+                    {}
+                  pole_bottom_4_link:
+                    {}
+                  pole_bottom_5_link:
+                    {}
+                  pole_kinect_0_link:
+                    {}
+                  pole_kinect_1_link:
+                    {}
+                  pole_middle_0_link:
+                    {}
+                  pole_middle_1_link:
+                    {}
+                  pole_middle_2_link:
+                    {}
+                  pole_middle_3_link:
+                    {}
+                  pole_top_0_link:
+                    {}
+                  pole_top_1_link:
+                    {}
+                  pole_top_2_link:
+                    {}
+                  pole_top_3_link:
+                    {}
+                  wheel_left_link:
+                    {}
+                  wheel_right_link:
+                    {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -190,20 +328,6 @@ Visualization Manager:
       Use Fixed Frame: true
       Use rainbow: false
       Value: false
-    - Class: rviz_default_plugins/Image
-      Enabled: true
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: Image
-      Normalize Range: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Best Effort
-        Value: /camera_sensor/semantic/image_raw
-      Value: true
     - Class: rviz_default_plugins/Marker
       Enabled: false
       Name: BloomxaiMarker
@@ -244,7 +368,9 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        PRM: true
+        PRM: false
+        hetPath: true
+        homPath: false
         tasks: true
       Topic:
         Depth: 5
@@ -252,6 +378,34 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /tasks_markers
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz_default_plugins/Path
+      Color: 25; 255; 0
+      Enabled: true
+      Head Diameter: 0.30000001192092896
+      Head Length: 0.20000000298023224
+      Length: 0.30000001192092896
+      Line Style: Lines
+      Line Width: 0.029999999329447746
+      Name: PathUGV
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Color: 255; 85; 255
+      Pose Style: None
+      Radius: 0.029999999329447746
+      Shaft Diameter: 0.10000000149011612
+      Shaft Length: 0.10000000149011612
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /plan
       Value: true
   Enabled: true
   Global Options:
@@ -299,40 +453,40 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 7.402702331542969
+      Distance: 7.758007049560547
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 2.172656536102295
-        Y: -1.125046730041504
-        Z: -0.27740588784217834
+        X: 1.7588534355163574
+        Y: 0.26589369773864746
+        Z: 0.0021810531616210938
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6047967672348022
+      Pitch: 1.5647963285446167
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.954606771469116
+      Yaw: 3.9437310695648193
     Saved: ~
 Window Geometry:
   Depth:
     collapsed: false
   Displays:
     collapsed: false
-  Height: 2086
+  Height: 1371
   Hide Left Dock: false
   Hide Right Dock: true
-  Image:
-    collapsed: false
-  QMainWindow State: 000000ff00000000fd00000004000000000000047400000737fc020000000bfb0000001200530065006c0065006300740069006f006e00000001e10000009b000000ab00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c0061007900730100000069000002b10000017800fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000060052004700420100000326000001340000002100fffffffb0000000a004400650070007400680100000466000001480000002100fffffffb0000000a0049006d00610067006501000005ba000001e60000002100ffffff000000010000010f000004b9fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003f000004b90000012300fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e1000001970000000300000f0000000051fc0100000002fb0000000800540069006d0065010000000000000f000000046000fffffffb0000000800540069006d0065010000000000000450000000000000000000000a800000073700000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000400000000000002ea000004aefc020000000bfb0000001200530065006c0065006300740069006f006e00000001e10000009b0000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb000000100044006900730070006c006100790073010000003b000001c1000000c700fffffffb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb000000060052004700420100000202000000c80000001600fffffffb0000000a0044006500700074006801000002d0000000d60000001600fffffffb0000001200530065006d0061006e007400690063007301000003ac0000013d0000001600ffffff000000010000010f000004b9fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fb0000000a00560069006500770073000000003f000004b9000000a000fffffffb0000001200530065006c0065006300740069006f006e010000025a000000b200000000000000000000000200000490000000a9fc0100000001fb0000000a00560069006500770073030000004e00000080000002e10000019700000003000009be00000051fc0100000002fb0000000800540069006d00650100000000000009be0000025300fffffffb0000000800540069006d00650100000000000004500000000000000000000006ce000004ae00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   RGB:
     collapsed: false
   Selection:
+    collapsed: false
+  Semantics:
     collapsed: false
   Time:
     collapsed: false
@@ -340,6 +494,6 @@ Window Geometry:
     collapsed: false
   Views:
     collapsed: true
-  Width: 3840
-  X: 5120
-  Y: 720
+  Width: 2494
+  X: 66
+  Y: 32

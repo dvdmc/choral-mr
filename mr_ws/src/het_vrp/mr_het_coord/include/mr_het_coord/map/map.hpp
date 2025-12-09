@@ -30,6 +30,19 @@ inline AgentType stringToAgentType(std::string agent_type)
   }
 }
 
+inline std::string agentTypeToString(AgentType agent_type)
+{
+  if (agent_type == AgentType::AERIAL)
+  {
+    return "AERIAL";
+  }
+  else if (agent_type == AgentType::GROUND)
+  {
+    return "GROUND";
+  }
+  return "UNKNOWN";
+}
+
 class GridMap
 {
 

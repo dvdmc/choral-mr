@@ -83,7 +83,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
 
   // Create a unique
   RCLCPP_INFO(this->get_logger(), "Running EXP: homVRP");
-  solveVRP(solver, distance_matrix, paths, false, true);
+  solveVRP(solver, distance_matrix, paths, false, false);
   RCLCPP_INFO(this->get_logger(), "Running EXP: hetVRP");
   solveVRP(solver, distance_matrix, paths, true, true);
   RCLCPP_INFO(this->get_logger(), "Finished experiments");
@@ -524,8 +524,8 @@ void MRVRPNode::solveVRP(
     msg.num_agents = num_vehicles_;
     for (int k = 0; k < num_vehicles_; ++k) {
       geometry_msgs::msg::PoseArray poses;
-      // Skip initial pose
-      for (size_t i = 1; i < path_[k].size(); ++i) {
+
+      for (size_t i = 0; i < path_[k].size(); ++i) {
         geometry_msgs::msg::Pose pose;
         pose.position.x = path_[k][i][0];
         pose.position.y = path_[k][i][1];
@@ -559,7 +559,8 @@ void MRVRPNode::solveVRP(
       }
       msg.paths.push_back(poses);
     }
-
+    RCLCPP_INFO(this->get_logger(), "Publishing VRP solution to topic %s",
+                pub_vrp_sol_->get_topic_name());
     pub_vrp_sol_->publish(msg);
   }
 }

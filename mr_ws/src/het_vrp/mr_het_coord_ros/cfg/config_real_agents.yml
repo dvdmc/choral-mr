@@ -1,8 +1,11 @@
 /**:
   ros__parameters:
+
+    global_frame: "earth"
+
     robot_ns:
-      - "drone_1"
-      - "turtlebot_1"
+      - "drone2"
+      - "turtlebot1"
 
     num_vehicles: 2
 
@@ -34,6 +37,6 @@
     d_05_collision: 0.25 # Distance at which the rate is 0.5 (high accident likelihood). We set it to 0.3m
 
 
-    solver_seconds: 10
+    solver_seconds: 3
 
     results_path: /root/results/

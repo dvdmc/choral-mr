@@ -21,6 +21,7 @@ find_package(rosidl_default_generators REQUIRED)
 
 find_package(rclcpp_action REQUIRED)
 find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(as2_msgs REQUIRED)
 
@@ -63,6 +64,7 @@ target_link_libraries(mr_het_planner_node "${cpp_typesupport_target}")
 ament_target_dependencies(mr_het_planner_node
   rclcpp
   tf2
+  tf2_geometry_msgs
   geometry_msgs
   as2_msgs
   nav2_msgs

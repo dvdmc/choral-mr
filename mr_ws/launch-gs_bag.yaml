@@ -8,7 +8,7 @@ windows:
       layout: tiled
       panes:
         - echo "ros2 bag play /root/bags/beta3.bag --clock"
-        - echo "ros2 launch mr_het_coord_ros mr_coord_real.launch num_agents:=2 map:=real"
+        - echo "source install/setup.bash && ros2 launch mr_het_coord_ros mr_coord_real.launch num_agents:=2 map:=real"
         
   - visualization:
       layout: tiled

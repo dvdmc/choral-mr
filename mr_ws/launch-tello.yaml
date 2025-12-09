@@ -55,3 +55,5 @@ windows:
       panes:
         - ros2 run as2_alphanumeric_viewer as2_alphanumeric_viewer_node
             --ros-args -r  __ns:=/drone2
+        
+        - echo "drone=drone2 ./takeoff_tello.sh"

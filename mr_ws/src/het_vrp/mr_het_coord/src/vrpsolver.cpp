@@ -217,8 +217,8 @@ void VRPSolver::addMaxSpanConstraint_(
   std::cout << "Median distance: " << median << std::endl;
   std::cout << "Median safety cost: " << median_cost << std::endl;
   // Minimize each vehicles' global span
-  int64_t est_route_cost = (median * (num_nodes) / (num_vehicles)) +
-                           (median_cost * (num_nodes) / (num_vehicles));  // Ideally no added cost
+  int64_t est_route_cost = (median * (num_nodes) / (num_vehicles-1)) +
+                           (median_cost * (num_nodes) / (num_vehicles-1));  // Ideally no added cost
   std::cout << "Median route cost: " << est_route_cost << std::endl;
 
   routing.AddDimensionWithVehicleTransits(

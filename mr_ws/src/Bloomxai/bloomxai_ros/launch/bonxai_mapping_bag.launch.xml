@@ -1,0 +1,22 @@
+<launch>
+
+  <arg name="config_file" default="$(find-pkg-share bloomxai_ros)/config/bloomxai.yaml"/>
+  <!-- launch-prefix="gnome-terminal -/- gdb -ex run -/-args" -->
+	<node pkg="bloomxai_ros" exec="bloomxai_server_node" name="bloomxai_server" output="screen">
+
+		<!--Config file -->
+    <param from="$(var config_file)" />
+
+		<!-- data source to integrate (PointCloud2) -->
+		<remap from="/cloud_in" to="/camera_sensor/point_cloud" />
+
+    <!-- Publish gridmap on /grid_map_out -->
+    <remap from="/grid_map" to="/grid_map_out" />
+
+		<!-- Publish Height colormap on Resulting VoxelGrid -->
+		<param name="use_height_map" value="true" />
+
+    <param name="use_sim_time" value="true" />
+
+	</node>
+</launch>

@@ -116,7 +116,7 @@ BaseGraph PRM::buildGraphFromTasks_(
   std::cout << "Found " << connected.size() << " components." << std::endl;
 
   /////////// CONNECT DISCONNECTED COMPONENTS
-  RRTStar rrt(map, step_size_, 10000, 5.0f, rng_);
+  RRTStar rrt(map, step_size_, 10000, 5.0f, rng_, false);
   auto start3 = std::chrono::high_resolution_clock::now();
 
   if (connected.size() > 1) {
@@ -167,7 +167,7 @@ BaseGraph PRM::buildGraphFromTasks_(
         bool is_connected = false;
         std::cout << "Trying to connect components " << connected[i].id
                   << " and " << connected[j].id << std::endl;
-
+        std::cout << "Safe: " << map_.FREE_THRESH << std::endl;
         auto potential = graph.getKPotentialConnections(
             connected[i].nodes, tmp_connected[j].nodes, 10);
 
@@ -230,36 +230,38 @@ BaseGraph PRM::buildGraphFromTasks_(
 
   // NOTE: Densifying proved to not improve much in the final version of the PRM construction.
   // It might improve results in more complex environemnts
-  // std::cout << "Densifying graph" << std::endl; auto start4 =
-  // std::chrono::high_resolution_clock::now();
-  // Densify, if any node has less than 5 neighbors, find paths to others
-  // for (auto node : graph.getNodes()) {
-  //   if (node->neighbors.size() < 5) {
-  //     // std::cout << "Node " << node->id << " has " <<
-  //     // node->neighbors.size() << " neighbors. Densifying" << std::endl;
-  //     std::vector<BaseGraphNode::Ptr> potential =
-  //         graph.getKNeighbors(node, 5, true, true);
-  //     for (auto const& neighbor : potential) {
-  //       std::vector<std::vector<float>> path = rrt.searchPath(
-  //           {node->x, node->y}, {neighbor->x, neighbor->y}, goal_th_);
-  //       if (path.size() > 0) {
-  //         for (int i = 1; i < path.size() - 1; i++) {
-  //           BaseGraphNode::Ptr new_node = std::make_shared<BaseGraphNode>(
-  //               graph.size(), path[i][0], path[i][1]);
-  //           graph.addNode(new_node);
-  //         }
-  //         // break; // Optionally, include just one
-  //       }
-  //       computeNeighbors_(graph);
-  //     }
-  //   }
-  // }
-  // computeNeighbors_(graph);
-    // std::cout << "Time taken in densifying: "
-    //         << std::chrono::duration_cast<std::chrono::milliseconds>(
-    //                std::chrono::high_resolution_clock::now() - start4)
-    //                .count()
-    //         << " ms" << std::endl;
+  std::cout << "Densifying graph" << std::endl; auto start4 =
+  std::chrono::high_resolution_clock::now();
+  //Densify, if any node has less than 5 neighbors, find paths to others
+  for (auto node : graph.getNodes()) {
+    if (node->neighbors.size() < std::min(5, (int)graph.size() - 1)) {
+      // std::cout << "Node " << node->id << " has " <<
+      // node->neighbors.size() << " neighbors. Densifying" << std::endl;
+      std::vector<BaseGraphNode::Ptr> potential =
+          graph.getKNeighbors(node, 5, true, true);
+      for (auto const& neighbor : potential) {
+        std::cout << "Searching path for densification between node "
+                  << node->id << " and " << neighbor->id << std::endl;
+        std::vector<std::vector<float>> path = rrt.searchPath(
+            {node->x, node->y}, {neighbor->x, neighbor->y}, goal_th_);
+        if (path.size() > 0) {
+          for (int i = 1; i < path.size() - 1; i++) {
+            BaseGraphNode::Ptr new_node = std::make_shared<BaseGraphNode>(
+                graph.size(), path[i][0], path[i][1]);
+            graph.addNode(new_node);
+          }
+          // break; // Optionally, include just one
+        }
+        computeNeighbors_(graph);
+      }
+    }
+  }
+  computeNeighbors_(graph);
+    std::cout << "Time taken in densifying: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::high_resolution_clock::now() - start4)
+                   .count()
+            << " ms" << std::endl;
 
   std::cout << "############## Total time taken in building PRM: "
             << std::chrono::duration_cast<std::chrono::milliseconds>(

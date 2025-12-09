@@ -130,7 +130,7 @@ class ROSBridge(BaseBridge):
                 qos_profile=qos_profile_sensor_data,
             )
             self.sync = message_filters.ApproximateTimeSynchronizer(
-                [self.rgb_sub, self.depth_sub], 10, 0.5
+                [self.rgb_sub, self.depth_sub], 10, 1.0 # TODO: Check time needed to sync
             )
             self.sync.registerCallback(self.sync_callback)
         else:

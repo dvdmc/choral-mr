@@ -1,6 +1,8 @@
 /**:
   ros__parameters:
     step_size: 3.0
+    safety_distance: 0.5
+
     map_filename: /root/mr_ws/src/het_vrp/maps/cave.pgm
     map_name: cave
     paths_filename: "none"

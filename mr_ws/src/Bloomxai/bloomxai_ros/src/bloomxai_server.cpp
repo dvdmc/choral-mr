@@ -734,7 +734,6 @@ void BloomxaiServer::publishAll() {
   // }
 
   // Publish Cube Marker
-  start = std::chrono::steady_clock::now();
   thread_local visualization_msgs::msg::Marker marker;
   marker.header.frame_id = world_frame_id_;
   marker.header.stamp = rostime;
@@ -779,11 +778,7 @@ void BloomxaiServer::publishAll() {
       0) {
     sendGridMap();
   }
-  now = std::chrono::steady_clock::now();
-  elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
-  RCLCPP_INFO(get_logger(), "Publishing classes took %f ms", elapsed);
 
-  start = std::chrono::steady_clock::now();
   if (semantic_type_ == SemanticType::FEATURES) {
     // Publish similarity
     // Publish Cube Marker
@@ -862,10 +857,6 @@ void BloomxaiServer::publishAll() {
       RCLCPP_INFO(get_logger(), "Published marker with %ld cubes", marker.points.size());
     }
   }
-  // Print timings
-  now = std::chrono::steady_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(now - start);
-  RCLCPP_INFO(get_logger(), "Publishing similarities took %ld ms", duration.count());
 }
 
 bool BloomxaiServer::resetSrv(

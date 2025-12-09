@@ -197,6 +197,13 @@ class SemanticMap {
       const std::vector<int>& task_classes,
       float th_z) const;
 
+  void collapseTasks(std::vector<std::vector<int>>& grid,
+                                int goal_code,
+                                float radius_cells,
+                                int obstacle_code,
+                                float obstacle_radius_cells) const;
+
+
   template <typename PointT>
   void getOccupiedVoxels(std::vector<PointT>& points) {
     thread_local std::vector<Bonxai::CoordT> coords;

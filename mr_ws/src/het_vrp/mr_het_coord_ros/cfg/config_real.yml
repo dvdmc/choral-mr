@@ -1,6 +1,8 @@
 /**:
   ros__parameters:
-    step_size: 1.0
+    step_size: 0.1
+    safety_distance: 0.2
+
     map_name: real
     paths_filename: "none"
 

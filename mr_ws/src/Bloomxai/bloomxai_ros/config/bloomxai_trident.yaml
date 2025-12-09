@@ -3,7 +3,7 @@
     resolution: 0.1
     frame_id: "earth"
     base_frame_id: "camera_link"
-    sem_dim: 6
+    sem_dim: 7
 
     occupancy_min_z: -100.0
     occupancy_max_z: 100.0

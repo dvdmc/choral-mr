@@ -596,10 +596,11 @@ class SemanticNode(Node):
             self.pub_camera_odometry.publish(odom_msg)
 
         if "rgb" in self.data_types:
-            print("Publishing rgb.")
             try:
                 rgb_msg = CvBridge().cv2_to_imgmsg(data["rgb"], "rgb8")
-                self.pub_rgb.publish(rgb_msg)
+                if self.pub_rgb.get_subscription_count() > 0:
+                  print("Publishing rgb.")
+                  self.pub_rgb.publish(rgb_msg)
             except CvBridgeError as e:
                 print(e)
 
@@ -615,21 +616,26 @@ class SemanticNode(Node):
                     print(e)
 
             semantic_msg = CvBridge().cv2_to_imgmsg(data["semantic_rgb"], "rgb8")
-            self.pub_semantic.publish(semantic_msg)
+            if self.pub_semantic.get_subscription_count() > 0:
+              print("Publishing 2D semantics.")
+              self.pub_semantic.publish(semantic_msg)
 
         if "depth" in self.data_types:
             try:
                 depth_msg = CvBridge().cv2_to_imgmsg(data["depth"], "passthrough")
-                self.pub_depth.publish(depth_msg)
+                if self.pub_depth.get_subscription_count() > 0:
+                  print("Publishing depth.")
+                  self.pub_depth.publish(depth_msg)
             except Exception as e:
                 print(e)
             # Publish point cloud
             points_pcd, points_RGB = self.pcd_from_rgb_depth(data["rgb"], data["depth"])
             
-            if self.publish_freespace_point_cloud:
+            if self.publish_freespace_point_cloud and self.pub_freespace_point_cloud.get_subscription_count() > 0:
                 free_pcd_msg = self.generate_freespace_point_cloud_msg(
                     data["depth"], timestamp
                 )
+                
                 self.pub_freespace_point_cloud.publish(free_pcd_msg)
 
             if "semantic" in self.data_types:
@@ -644,7 +650,9 @@ class SemanticNode(Node):
                     data["semantic_gt"],
                     timestamp,
                 )
-                self.pub_point_cloud.publish(pcd_msg)
+                if self.pub_point_cloud.get_subscription_count() > 0:
+                  print("Publishing point cloud with semantics.")
+                  self.pub_point_cloud.publish(pcd_msg)
             else:
                 pcd_msg = self.generate_point_cloud_msg(
                     points_pcd, points_RGB, timestamp

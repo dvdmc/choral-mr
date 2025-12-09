@@ -1,6 +1,8 @@
 /**:
   ros__parameters:
     step_size: 1.5
+    safety_distance: 0.5
+
     map_filename: /root/mr_ws/src/het_vrp/maps/park.pgm
     map_name: park
     paths_filename: none

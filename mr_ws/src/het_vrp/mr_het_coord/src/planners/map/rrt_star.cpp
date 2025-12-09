@@ -130,6 +130,12 @@ std::vector<std::vector<float>> RRTStar::searchPath(std::vector<float> start,
     return simplifyPath(path);
   }
 
+  // If origin is in an obstacle, return empty path
+  if (!map_.isValid(start[0], start[1], true)) {
+    std::cout << "Start in obstacle!" << std::endl;
+    return {};
+  }
+
   for (int i = 0; i < max_samples_; ++i) {
     std::vector<float> random_point =
         informedRandomSample_(start, goal, 0.01 * i, rng_);

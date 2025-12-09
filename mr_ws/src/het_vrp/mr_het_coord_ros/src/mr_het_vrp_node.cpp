@@ -51,7 +51,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
     rclcpp::shutdown();
   }
   RCLCPP_INFO(this->get_logger(), "Running PRM");
-  path_planner_ = std::make_shared<PRM>(*map_, tasks_, step_size_, 5.0f, rng_);
+  path_planner_ = std::make_shared<PRM>(*map_, tasks_, step_size_, 10.0f, rng_);
 
   VRPSolver solver;
   std::vector<std::vector<int64_t>> distance_matrix;
@@ -128,7 +128,8 @@ void MRVRPNode::readROSParameters() {
   this->declare_parameter("agent_types", std::vector<std::string>({}));
 
   // Mission info
-  this->declare_parameter("step_size", 0.0);
+  this->declare_parameter("step_size", 0.1f);
+  this->declare_parameter("safety_distance", 0.5f);
 
   this->declare_parameter("map_name", "");
   this->declare_parameter("paths_filename", "none");
@@ -158,6 +159,7 @@ void MRVRPNode::readROSParameters() {
   this->get_parameter("agent_types", agent_types_str_);
 
   this->get_parameter("step_size", step_size_);
+  this->get_parameter("safety_distance", safety_distance_);
 
   this->get_parameter("map_name", map_name_);
   this->get_parameter("paths_filename", paths_filename_);
@@ -187,6 +189,7 @@ void MRVRPNode::readROSParameters() {
   RCLCPP_INFO(this->get_logger(), "Agent types: ");
   for (auto t : agent_types_) RCLCPP_INFO(this->get_logger(), "%d ", int(t));
   RCLCPP_INFO(this->get_logger(), "Step size: %.2f", step_size_);
+  RCLCPP_INFO(this->get_logger(), "Safety distance: %.2f", safety_distance_);
   RCLCPP_INFO(this->get_logger(), "Map name: %s", map_name_.c_str());
   RCLCPP_INFO(this->get_logger(), "Paths filename: %s",
               paths_filename_.c_str());
@@ -219,7 +222,7 @@ void MRVRPNode::mapCallback(const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
   float map_resolution = msg->info.resolution;
   auto map_center = std::vector<float>{float(msg->info.origin.position.x),
                                        float(msg->info.origin.position.y)};
-  map_ = std::make_shared<GridMap>(map_resolution, map_center);
+  map_ = std::make_shared<GridMap>(map_resolution, map_center, safety_distance_);
   // Build a matrix from the data
   std::vector<std::vector<int>> grid_map(msg->info.height,
                                          std::vector<int>(msg->info.width, 0));

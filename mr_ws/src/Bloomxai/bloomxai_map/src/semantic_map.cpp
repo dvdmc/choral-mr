@@ -158,7 +158,7 @@ void SemanticMap::getMapLimits(std::vector<float>& min, std::vector<float>& max)
 std::vector<int> SemanticMap::getMapXYSize() const {
   std::vector<float> min, max;
   getMapLimits(min, max);
-  return {int((max[0] - min[0]) / resolution_) + 1, int((max[1] - min[1]) / resolution_) + 1};
+  return {int((max[0] - min[0]) / resolution_) + 2, int((max[1] - min[1]) / resolution_) + 2};
 }
 
 void SemanticMap::getOccupiedVoxelsAndClass(
@@ -198,81 +198,126 @@ void SemanticMap::getOccupiedVoxelsClassAndSimilarity(
   };
   grid_.forEachCell(visitor);
 }
-
-void collapseTasks(std::vector<std::vector<int>>& grid, int goal_code = 22) {
+void SemanticMap::collapseTasks(
+    std::vector<std::vector<int>>& grid, int goal_code, float radius_cells, int obstacle_code,
+    float obstacle_radius_cells) const {
   int H = grid.size();
   int W = grid[0].size();
-  int min_size = 4;
+  int min_size = 2;  // Minimum size of a valid task region
 
   std::vector<std::vector<bool>> visited(H, std::vector<bool>(W, false));
 
-  const int dx[8] = {1, -1, 0, 0, 1, -1, 1, -1};
-  const int dy[8] = {0, 0, 1, -1, 1, -1, -1, 1};
+  // Precompute all goal and obstacle cells.
+  std::vector<std::pair<int, int>> goal_cells;
+  std::vector<std::pair<int, int>> obstacle_cells;
 
-  for (int y = 0; y < H; y++) {
-    for (int x = 0; x < W; x++) {
-      // Start BFS for each unvisited goal cell
-      if (grid[y][x] == goal_code && !visited[y][x]) {
-        std::queue<std::pair<int, int>> q;
-        std::vector<std::pair<int, int>> region;
+  for (int y = 0; y < H; ++y) {
+    for (int x = 0; x < W; ++x) {
+      if (grid[y][x] == goal_code)
+        goal_cells.emplace_back(x, y);
+      else if (grid[y][x] == obstacle_code)
+        obstacle_cells.emplace_back(x, y);
+    }
+  }
 
-        q.push({x, y});
-        visited[y][x] = true;
+  const float R2 = radius_cells * radius_cells;
+  const float OR2 = obstacle_radius_cells * obstacle_radius_cells;
 
-        while (!q.empty()) {
-          auto [cx, cy] = q.front();
-          q.pop();
-          region.push_back({cx, cy});
+  // Process all clusters
+  for (auto& start : goal_cells) {
+    int sx = start.first;
+    int sy = start.second;
 
-          // explore 4-neighbors
-          for (int k = 0; k < 4; k++) {
-            int nx = cx + dx[k];
-            int ny = cy + dy[k];
+    if (visited[sy][sx])
+      continue;
 
-            if (nx >= 0 && nx < W && ny >= 0 && ny < H && !visited[ny][nx] &&
-                grid[ny][nx] == goal_code) {
-              visited[ny][nx] = true;
-              q.push({nx, ny});
-            }
-          }
-        }
+    // Start new cluster
+    std::queue<std::pair<int, int>> q;
+    std::vector<std::pair<int, int>> region;
 
-        // --- Collapse this region ---
-        if (!region.empty()) {
-          // find bounding box
-          int min_x = W, min_y = H;
-          int max_x = 0, max_y = 0;
+    q.push({sx, sy});
+    visited[sy][sx] = true;
 
-          for (auto& p : region) {
-            min_x = std::min(min_x, p.first);
-            min_y = std::min(min_y, p.second);
-            max_x = std::max(max_x, p.first);
-            max_y = std::max(max_y, p.second);
-          }
+    while (!q.empty()) {
+      auto [cx, cy] = q.front();
+      q.pop();
+      region.push_back({cx, cy});
 
-          // bounding-box sizes (optional)
-          int x_size = max_x - min_x + 1;
-          int y_size = max_y - min_y + 1;
+      // Expand within radius
+      for (auto& g : goal_cells) {
+        int gx = g.first;
+        int gy = g.second;
 
-          // bounding-box center
-          int cx = (min_x + max_x) / 2;
-          int cy = (min_y + max_y) / 2;
+        if (visited[gy][gx])
+          continue;
 
-          // region size (optional)
-          int region_size = region.size();
+        float dx = gx - cx;
+        float dy = gy - cy;
 
-          // clear entire region
-          for (auto& p : region) {
-            grid[p.second][p.first] = 0;
-          }
-
-          // mark center cell
-          if (x_size >= min_size && y_size >= min_size) {
-            grid[cy][cx] = goal_code;
-          }
+        if (dx * dx + dy * dy <= R2) {
+          visited[gy][gx] = true;
+          q.push({gx, gy});
         }
       }
     }
+
+    if (region.empty())
+      continue;
+
+    // ---------------------------------------------------------
+    //  CHECK OBSTACLE PROXIMITY
+    // ---------------------------------------------------------
+    bool too_close_to_obstacle = false;
+
+    for (auto& p : region) {
+      int rx = p.first;
+      int ry = p.second;
+
+      for (auto& o : obstacle_cells) {
+        int ox = o.first;
+        int oy = o.second;
+
+        float dx = ox - rx;
+        float dy = oy - ry;
+
+        if (dx * dx + dy * dy <= OR2 || rx - OR2 < 0 || ry - OR2 < 0 || rx + OR2 >= W ||
+            ry + OR2 >= H) {
+          too_close_to_obstacle = true;
+          break;
+        }
+      }
+
+      if (too_close_to_obstacle)
+        break;
+    }
+
+    // If region is invalid due to obstacle proximity → clear and skip
+    if (too_close_to_obstacle || region.size() < min_size) {
+      for (auto& p : region) grid[p.second][p.first] = 0;
+      continue;
+    }
+
+    // ---------------------------------------------------------
+    //  COLLAPSE TO BBOX CENTER
+    // ---------------------------------------------------------
+    int min_x = W, min_y = H;
+    int max_x = 0, max_y = 0;
+
+    for (auto& p : region) {
+      min_x = std::min(min_x, p.first);
+      min_y = std::min(min_y, p.second);
+      max_x = std::max(max_x, p.first);
+      max_y = std::max(max_y, p.second);
+    }
+
+    int cx = (min_x + max_x) / 2;
+    int cy = (min_y + max_y) / 2;
+
+    // Clear region
+    for (auto& p : region) grid[p.second][p.first] = 0;
+
+    // Mark collapsed task center
+    grid[cy][cx] = goal_code;
   }
 }
 
@@ -330,7 +375,7 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
   };
 
   grid_.forEachCell(visitor);
-  collapseTasks(matrix, TASK_VALUE);
+  collapseTasks(matrix, TASK_VALUE, 3.0f, OCCUPIED_VALUE, 0.5f);
   return matrix;
 }
 

@@ -50,8 +50,8 @@ public:
   float DIST_THRESH = 0.5f; // meters
   int TRAVERSABILITY_VALUE = 51;
 
-  GridMap(float const _resolution, std::vector<float> const _origin)
-      : resolution(_resolution), origin(_origin) {}
+  GridMap(float const _resolution, std::vector<float> const _origin, float _safety_dist = 0.3f)
+      : resolution(_resolution), origin(_origin), DIST_THRESH(_safety_dist) {}
 
   /**
    * @brief Converts grid coordinates to world coordinates.

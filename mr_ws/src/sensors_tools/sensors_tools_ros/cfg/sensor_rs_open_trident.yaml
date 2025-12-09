@@ -4,8 +4,8 @@
     use_sim_time: true
 
     frequency: 1.0 # Frequency of the sensor in Hz. -1 means that we are using a service instead of a timer
-    stride: 8 # Stride of the sensor for generating the pointcloud
-    max_depth: 4.5 # Maximum distance of the sensor
+    stride: 16 # Stride of the sensor for generating the pointcloud
+    max_depth: 7 # Maximum distance of the sensor
     publish_freespace_point_cloud: true
     origin_frame_id: "map" # Origin of the sensor will be published in this frame for the poses
     sensor_frame_id: "camera_link" # Sensor messages will be published in this frame
@@ -27,7 +27,7 @@
     semantic_segmentation_type: 'trident'
     inference:
       semantic_dataset_type: "custom_set" # Number of classes 4 MAKE SURE TO SET IN MAP!
-      custom_set_labels: ['none','floor','cables','pebbles','animal','robot'] # cardboard, debris, cables, stones, 
+      custom_set_labels: ['none','concrete floor','cables','pebbles','animal','robot', 'cardboard'] # cardboard, debris, cables, stones, 
       sam_checkpoint_path: "/root/checkpoints/Trident/sam_vit_b_01ec64.pth"
       # custom_set_labels: "none,ceiling,floor,wall,table,human,door"
       # Colors for reference: black, gray, pink-red, clear blue, brown, 

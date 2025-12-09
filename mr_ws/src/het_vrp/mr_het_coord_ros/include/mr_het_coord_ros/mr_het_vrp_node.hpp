@@ -50,6 +50,7 @@ class MRVRPNode : public rclcpp::Node {
   std::vector<std::string> agent_types_str_;
   std::vector<AgentType> agent_types_;
   float step_size_;
+  float safety_distance_;
   std::string map_name_;
   float cost_scaling_;
   float lambda_good_trav_;

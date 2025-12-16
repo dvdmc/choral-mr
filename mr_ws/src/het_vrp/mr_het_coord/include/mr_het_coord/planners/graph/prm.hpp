@@ -57,7 +57,7 @@ public:
    */
   bool isVisible(float x1, float y1, float x2, float y2) const override
   {
-    return map_.isVisible(x1, y1, x2, y2, 0.01f, false);
+    return map_.isVisible(x1, y1, x2, y2, map_.resolution/2, true);
   }
 
   /**

@@ -217,6 +217,18 @@ public:
     grid_map_terrain.clear();
     grid_map_terrain.resize(height_px, std::vector<int>(width_px, 0));
 
+    // Transform -1 (unknown) to 100 (occupied)
+    for (int i = 0; i < height_px; i++)
+    {
+      for (int j = 0; j < width_px; j++)
+      {
+        if (grid_map[i][j] == -1)
+        {
+          grid_map[i][j] = 100;
+        }
+      }
+    }
+
     computeTraversability();
     computeSDF();
     return true;

@@ -150,16 +150,7 @@ static const std::vector<std::vector<uint8_t>> generateColorMap(int numLabels) {
 }
 
 static const std::vector<std::vector<uint8_t>> getLabelMap(const int num_classes) {
-  switch (num_classes) {
-    case 8:
-      return LABEL_TO_RGB_8;
-    case 21:
-      return LABEL_TO_RGB_21;
-    case 150:
-      return LABEL_TO_RGB_150;
-    default:
-      return generateColorMap(num_classes);
-  }
+  return generateColorMap(num_classes);
 }
 
 static const std::vector<std::vector<uint8_t>> bgrToRgb(

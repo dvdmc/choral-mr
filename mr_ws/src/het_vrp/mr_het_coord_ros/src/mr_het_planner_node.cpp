@@ -131,7 +131,7 @@ void MRPlannerNode::sendUGVAction(geometry_msgs::msg::PoseArray const& path,
                                   int id) {
   int local_id = global_to_local_id_map_[id];
   if (!ugv_client_ptrs_[local_id]->wait_for_action_server(
-          std::chrono::milliseconds(1000))) {
+          std::chrono::milliseconds(10000))) {
     RCLCPP_ERROR(this->get_logger(), "UGV action server not available");
     return;
   }
@@ -183,7 +183,7 @@ void MRPlannerNode::sendUAVAction(geometry_msgs::msg::PoseArray const& path,
                                   int id) {
   int local_id = global_to_local_id_map_[id];
   if (!uav_client_ptrs_[local_id]->wait_for_action_server(
-          std::chrono::milliseconds(1000))) {
+          std::chrono::milliseconds(10000))) {
     RCLCPP_ERROR(this->get_logger(), "Drone action server not available");
     return;
   }

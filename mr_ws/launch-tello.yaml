@@ -40,15 +40,6 @@ windows:
             namespace:=drone2
             config_file:=config/tello/config.yaml
 
-  # Mission execution
-  - mission_execution:
-      layout:
-      panes:
-        # Behavior tree
-        - ros2 launch as2_behavior_tree behavior_trees.launch.py
-            drone_id:=drone2
-            tree:=./trees/square.xml
-
   # Mission monitoring
   - mission_monitoring:
       layout: tiled

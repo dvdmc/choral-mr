@@ -199,24 +199,24 @@ void SemanticMap::getOccupiedVoxelsClassAndSimilarity(
   grid_.forEachCell(visitor);
 }
 void SemanticMap::collapseTasks(
-    std::vector<std::vector<int>>& grid, int goal_code, float radius_cells, int obstacle_code,
+    std::vector<std::vector<int>>& grid, int goal_code, float radius_cells, int unknown_code,
     float obstacle_radius_cells) const {
   int H = grid.size();
   int W = grid[0].size();
-  int min_size = 2;  // Minimum size of a valid task region
+  int min_size = 5;  // Minimum size of a valid task region
 
   std::vector<std::vector<bool>> visited(H, std::vector<bool>(W, false));
 
-  // Precompute all goal and obstacle cells.
+  // Precompute all goal and unknown cells.
   std::vector<std::pair<int, int>> goal_cells;
-  std::vector<std::pair<int, int>> obstacle_cells;
+  std::vector<std::pair<int, int>> unknown_cells;
 
   for (int y = 0; y < H; ++y) {
     for (int x = 0; x < W; ++x) {
       if (grid[y][x] == goal_code)
         goal_cells.emplace_back(x, y);
-      else if (grid[y][x] == obstacle_code)
-        obstacle_cells.emplace_back(x, y);
+      else if (grid[y][x] == unknown_code)
+        unknown_cells.emplace_back(x, y);
     }
   }
 
@@ -265,15 +265,15 @@ void SemanticMap::collapseTasks(
       continue;
 
     // ---------------------------------------------------------
-    //  CHECK OBSTACLE PROXIMITY
+    //  CHECK UNKNOWN PROXIMITY
     // ---------------------------------------------------------
-    bool too_close_to_obstacle = false;
+    bool too_close_to_unknown = false;
 
     for (auto& p : region) {
       int rx = p.first;
       int ry = p.second;
 
-      for (auto& o : obstacle_cells) {
+      for (auto& o : unknown_cells) {
         int ox = o.first;
         int oy = o.second;
 
@@ -282,17 +282,17 @@ void SemanticMap::collapseTasks(
 
         if (dx * dx + dy * dy <= OR2 || rx - OR2 < 0 || ry - OR2 < 0 || rx + OR2 >= W ||
             ry + OR2 >= H) {
-          too_close_to_obstacle = true;
+          too_close_to_unknown = true;
           break;
         }
       }
 
-      if (too_close_to_obstacle)
+      if (too_close_to_unknown)
         break;
     }
 
-    // If region is invalid due to obstacle proximity → clear and skip
-    if (too_close_to_obstacle || region.size() < min_size) {
+    // If region is invalid due to unknown proximity, clear and skip
+    if (too_close_to_unknown || region.size() < min_size) {
       for (auto& p : region) grid[p.second][p.first] = 0;
       continue;
     }
@@ -325,15 +325,23 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
     const std::vector<float>& min, const std::vector<float>& max, const std::vector<int>& map_size,
     const std::vector<int>& problematic_classes, const std::vector<int>& task_classes,
     float th_z) const {
-  std::vector<std::vector<int>> matrix(map_size[1], std::vector<int>(map_size[0], -1));
-  const int FREE_VALUE = 0;
-  const int OCCUPIED_VALUE = 100;
-  const int PROBLEMATIC_VALUE = 51;
-  const int TASK_VALUE = 22;
+
+    const int FREE_VALUE = 0;
+    const int OCCUPIED_VALUE = 100;
+    const int PROBLEMATIC_VALUE = 51;
+    const int TASK_VALUE = 22;
+    const int UNKNOWN_VALUE = -1;
+    std::vector<std::vector<int>> matrix(map_size[1], std::vector<int>(map_size[0], UNKNOWN_VALUE));
+
   auto visitor = [&](SemCellT& cell, const CoordT& coord) {
     int grid_coord_x = int(coord.x - (min[0] / resolution_));
     int grid_coord_y = int(coord.y - (min[1] / resolution_));
     float coord_z_th = th_z / resolution_;
+
+    // Remove noisy cells below ground level
+    if (coord.z < 0) {
+      return;
+    }
 
     bool is_task = false;
     for (int c : task_classes) {
@@ -375,7 +383,7 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
   };
 
   grid_.forEachCell(visitor);
-  collapseTasks(matrix, TASK_VALUE, 3.0f, OCCUPIED_VALUE, 0.5f);
+  collapseTasks(matrix, TASK_VALUE, 4.0f, UNKNOWN_VALUE, 2.0f);
   return matrix;
 }
 

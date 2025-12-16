@@ -233,7 +233,8 @@ BaseGraph PRM::buildGraphFromTasks_(
   std::cout << "Densifying graph" << std::endl; auto start4 =
   std::chrono::high_resolution_clock::now();
   //Densify, if any node has less than 5 neighbors, find paths to others
-  for (auto node : graph.getNodes()) {
+  auto nodes = graph.getNodes();
+  for (auto node : nodes) {
     if (node->neighbors.size() < std::min(5, (int)graph.size() - 1)) {
       // std::cout << "Node " << node->id << " has " <<
       // node->neighbors.size() << " neighbors. Densifying" << std::endl;

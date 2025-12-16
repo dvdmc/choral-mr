@@ -200,7 +200,7 @@ class SemanticMap {
   void collapseTasks(std::vector<std::vector<int>>& grid,
                                 int goal_code,
                                 float radius_cells,
-                                int obstacle_code,
+                                int unknown_code,
                                 float obstacle_radius_cells) const;
 
 

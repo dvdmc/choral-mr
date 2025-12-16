@@ -4,13 +4,13 @@ from time import sleep
 from as2_python_api.drone_interface import DroneInterface
 import rclpy
 
-TAKE_OFF_HEIGHT = 3.5  # Height in meters
-TAKE_OFF_SPEED = 0.3  # Max speed in m/s
+TAKE_OFF_HEIGHT = 2.0  # Height in meters
+TAKE_OFF_SPEED = 0.1  # Max speed in m/s
 SLEEP_TIME = 1.0  # Sleep time between behaviors in seconds
-SPEED = 0.1  # Max speed in m/s
+SPEED = 0.05  # Max speed in m/s
 HEIGHT = 2.0  # Height in meters
 PATH = [
-    [0.5, 0.0, HEIGHT],
+    [1.0, 0.0, HEIGHT],
     [1.0, 2.2, HEIGHT],
     [2.4, 2.2, HEIGHT],
     [4.2, 2.0, HEIGHT],
@@ -21,9 +21,9 @@ PATH = [
     [2.7, 0.5, HEIGHT],
     [1.3, -1.6, HEIGHT],
     [1.6, 0.6, HEIGHT],
-    [0.5, 0.0, HEIGHT],
+    [0.7, 0.0, HEIGHT],
 ]
-LAND_SPEED = 0.5  # Max speed in m/s
+LAND_SPEED = 0.3  # Max speed in m/s
 
 
 def drone_start(drone_interface: DroneInterface) -> bool:

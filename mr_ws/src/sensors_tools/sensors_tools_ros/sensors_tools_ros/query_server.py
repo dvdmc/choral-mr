@@ -18,21 +18,17 @@ class QueryServer(Node):
     def __init__(self):
         super().__init__('query_server')
 
-        # Service client
         self.cli = self.create_client(SetQueries, '/bloomxai_server/set_queries')
 
         while not self.cli.wait_for_service(timeout_sec=2.0):
             self.get_logger().info('Waiting for /bloomxai_server/set_queries service...')
 
-        # Lazy model handle
         self.encoder = None
         self.device = None
 
         self.get_logger().info("QueryServer ready. Type comma-separated queries:")
 
         self.run_input_loop()
-
-    # --------------------------------------------------------
 
     def lazy_load_model(self):
         """Load Naradio model only when needed."""
@@ -50,8 +46,6 @@ class QueryServer(Node):
             compile=False
         )  
         self.get_logger().info("Model loaded successfully.")
-
-    # --------------------------------------------------------
 
     def unload_model(self):
         """Unload model to free GPU memory."""
@@ -74,13 +68,11 @@ class QueryServer(Node):
 
         self.get_logger().info("Model unloaded.")
 
-    # --------------------------------------------------------
-
     def run_input_loop(self):
         """Waits for user input."""
         try:
             while rclpy.ok():
-                line = input("\nEnter queries (comma-separated)floor,cable,pebbles,animal : ").strip()
+                line = input("\nEnter queries (comma-separated) e.g., floor,cables,pebbles,animal,robot,cardboard: ").strip()
                 if not line:
                     continue
 
@@ -90,11 +82,7 @@ class QueryServer(Node):
         except KeyboardInterrupt:
             pass
 
-    # --------------------------------------------------------
-
     def process_queries(self, queries):
-        """Load model → encode → send service → unload model."""
-
         # Load model on demand
         self.lazy_load_model()
 
@@ -131,8 +119,6 @@ class QueryServer(Node):
 
         # Fully unload model to free GPU memory
         self.unload_model()
-
-# ------------------------------------------------------------
 
 def main(args=None):
     rclpy.init(args=args)

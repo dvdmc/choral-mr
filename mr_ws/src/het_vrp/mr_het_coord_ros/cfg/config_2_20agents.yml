@@ -27,7 +27,7 @@
     # Define parameters for the logistic function in the collision cost
     # These values would be determined experimentally or from manufacturer data
     gamma_collision: 10.0 # Controls the decay rate. Prob is very low at 1m
-    d_05_collision: 0.01 # Distance at which the rate is 0.5 (high accident likelihood). We set it to 0.3m
+    d_05_collision: 0.1 # Distance at which the rate is 0.5 (high accident likelihood). We set it to 0.3m
 
 
     solver_seconds: 120

@@ -3,9 +3,9 @@
 
     use_sim_time: true
 
-    frequency: 0.8 # Frequency of the sensor in Hz. -1 means that we are using a service instead of a timer
+    frequency: 1.0 # Frequency of the sensor in Hz. -1 means that we are using a service instead of a timer
     stride: 16 # Stride of the sensor for generating the pointcloud
-    max_depth: 4.5 # Maximum distance of the sensor
+    max_depth: 7 # Maximum distance of the sensor
     publish_freespace_point_cloud: true
     origin_frame_id: "map" # Origin of the sensor will be published in this frame for the poses
     sensor_frame_id: "camera_link" # Sensor messages will be published in this frame
@@ -26,10 +26,9 @@
     # Config for inference is in sensors_tools/inference/semantic_segmentation/{semantic_segmentation_type}.py
     semantic_segmentation_type: 'naradio'
     inference:
-      semantic_dataset_type: "custom_set" # Number of classes 4 MAKE SURE TO SET IN MAP!
+      semantic_dataset_type: "custom_set" # Set the correct SemDim in map! In this case is the feature vector size.
       semantic_feature_type: "feature_vector"
-      custom_set_labels: ['floor','cable','pebbles', 'animal'] # cardboard, debris, cables, stones, 
+      custom_set_labels: ['concrete floor','cables','pebbles','animal','robot', 'cardboard'] # cardboard, debris, cables, stones, 
       model_version: "radio_v2.5-b"
       lang_model: "siglip"
-      input_resolution: [720,720]
-      # colors: [[0,0,0],[0,0,255],[0,255,0],[255,0,0]]
+      input_resolution: [720, 1280]

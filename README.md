@@ -19,7 +19,7 @@ This repository contains:
 - `docker_tb2/`folder including the Turtlebot Dockerfile and the ROS 2 packages `tb2_system` and `optitrack_pose_broadcaster` required to run navigation on the ground robot.
 - `docker_as2/` folder including the Surveyor Dockerfile and the ROS 2 package `as2_system` required to run navigation on the surveyor drone.
 - `bags`, `maps`, and `results` are empty folers to map volumes inside the ground station Docker to collect persistent data.
-- `docker_gs/mr_ws` workspace including different packages used in the ground station. Specifically:
+- `docker_gs/choral_ws` workspace including different packages used in the ground station. Specifically:
   - `sensors_tools` our package used for inference on images. It is a general module, and the `Trident` configuration was used.
   - `Bloomxai` our 3D semantic voxel-based map software.
   - `het_vrp` the planning and coordination package implementing our heterogeneous VRP formulation, the cost computation, and PRM construction.
@@ -83,7 +83,7 @@ docker exec -it mr_system /bin/bash
 
 Once you are inside the Docker, run:
 ```bash
-cd mr_ws
+cd choral_ws
 colcon build --symlink-install
 source install/setup.bash
 tmuxinator start -p launch-gs_virtual.yaml
@@ -91,7 +91,7 @@ tmuxinator start -p launch-gs_virtual.yaml
 mr_coord_virtual.launch num_agents:=2 map:=forest 
 ```
 
-You can modify the number of agents to 1 and 4. Other numbers require creating specific config files in `mr_ws/src/het_vrp/mr_het_coord_ros/cfg`. You can also specify other map names.
+You can modify the number of agents to 1 and 4. Other numbers require creating specific config files in `choral_ws/src/het_vrp/mr_het_coord_ros/cfg`. You can also specify other map names.
 
 ## Real robots deployment
 
@@ -99,10 +99,10 @@ The real robot deployment highly depends on the specific lab setup and configura
 
 ### Ground Station
 
-The ground station will run the positioning system for the motion capture system. This should be replaced by individual robot positioning systems in other scenarios. For the motion capture system, adjust the `config/ground_station/mocap4r2_optitrack.yaml` file to set the correct IPs for connecting to the Optitrack system. The ground station also runs semantic segmentation inference on images received from the Surveyor drone. Configure the open-vocabulary terms to detect in `src/sensors_tools/sensors_tools_ros/cfg/sensor_rs_open_trident.yaml`. Aside from building the main source code, you will have to create a virtual environment and install the `sensors_tools` package. Inside the docker, move to `mr_ws` and do:
+The ground station will run the positioning system for the motion capture system. This should be replaced by individual robot positioning systems in other scenarios. For the motion capture system, adjust the `config/ground_station/mocap4r2_optitrack.yaml` file to set the correct IPs for connecting to the Optitrack system. The ground station also runs semantic segmentation inference on images received from the Surveyor drone. Configure the open-vocabulary terms to detect in `src/sensors_tools/sensors_tools_ros/cfg/sensor_rs_open_trident.yaml`. Aside from building the main source code, you will have to create a virtual environment and install the `sensors_tools` package. Inside the docker, move to `choral_ws` and do:
 
 ```bash
-cd mr_ws
+cd choral_ws
 python3 -m venv .env-sem --system-site-packages
 source .env-sem/bin/activate
 pip install torch torchvision torchaudio # Make sure the CUDA version is installed

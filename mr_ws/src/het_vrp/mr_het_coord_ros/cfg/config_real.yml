@@ -7,6 +7,5 @@
     paths_filename: "none"
 
     depot_position: [1.2, 0.0]
-    # tasks_filename: "/root/mr_ws/tasks_real.json"
 
     global_frame: "earth"

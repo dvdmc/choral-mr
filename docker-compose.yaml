@@ -1,10 +1,10 @@
 services:
-  mr_system:
-    image: mr_system
+  choral_system:
+    image: choral_system
     build:
       context: ./docker_gs/ # gs for "ground station"
       dockerfile: Dockerfile
-    container_name: mr_system
+    container_name: choral_system
     environment:
       DISPLAY: $DISPLAY
       ROS_DOMAIN_ID: 3
@@ -17,7 +17,7 @@ services:
       # For connecting with interfaces
       - /dev/:/dev
       # Mount the workspace
-      - ./mr_ws:/root/mr_ws
+      - ./choral_ws:/root/choral_ws
       # Mount the bags
       - ./bags:/root/bags
       # Mount the results

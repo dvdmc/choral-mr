@@ -259,7 +259,6 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   }
 
   auto qos = latched_topics_ ? rclcpp::QoS{1}.transient_local() : rclcpp::QoS{1};
-  point_cloud_pub_ = create_publisher<PointCloud2>("bloomxai_point_cloud_centers", qos);
   marker_pub_ = this->create_publisher<visualization_msgs::msg::Marker>("bloomxai/marker", qos);
   grid_map_pub_ = this->create_publisher<nav_msgs::msg::OccupancyGrid>("grid_map", qos);
 
@@ -334,6 +333,7 @@ bool BloomxaiServer::setQueriesCallback(
   response->success = true;
 
   response->message = "Queries set successfully.";
+  RCLCPP_INFO(get_logger(), "Set %d text queries", num_queries);
   return true;
 }
 
@@ -504,7 +504,6 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
   const auto start = rclcpp::Clock{}.now();
 
   RCLCPP_INFO(get_logger(), "Received cloud with %d points", cloud->width * cloud->height);
-
   // Sensor In Global Frames Coordinates
   geometry_msgs::msg::TransformStamped sensor_to_world_transform_stamped;
   try {
@@ -677,6 +676,7 @@ rcl_interfaces::msg::SetParametersResult BloomxaiServer::onParameter(
 }
 
 void BloomxaiServer::publishAll() {
+
   auto start = std::chrono::steady_clock::now();
   const auto rostime = this->now();
   thread_local std::vector<Eigen::Vector3d> bloomxai_result;
@@ -685,7 +685,6 @@ void BloomxaiServer::publishAll() {
   thread_local std::vector<float> similarities;
   labels.clear();
   similarities.clear();
-
   {
     std::lock_guard<std::mutex> lock(bloomxai_mutex_);
     if (!bloomxai_->semantic_operator->isReady()) {
@@ -695,6 +694,7 @@ void BloomxaiServer::publishAll() {
     bloomxai_->getOccupiedVoxelsClassAndSimilarity(
         sim_query_index_, bloomxai_result, labels, similarities);
   }
+
   auto now = std::chrono::steady_clock::now();
   auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count();
   RCLCPP_INFO(get_logger(), "Getting data took %d ms", elapsed);
@@ -703,35 +703,6 @@ void BloomxaiServer::publishAll() {
     RCLCPP_WARN(get_logger(), "Nothing to publish, bloomxai is empty");
     return;
   }
-
-  // bool publish_point_cloud =
-  //     (latched_topics_ || point_cloud_pub_->get_subscription_count() +
-  //                                 point_cloud_pub_->get_intra_process_subscription_count() >
-  //                             0);
-
-  // Publish Point Cloud
-  // if (publish_point_cloud) {
-  //   thread_local pcl::PointCloud<PCLPointRGB> pcl_cloud;
-  //   pcl_cloud.clear();
-
-  //   for (size_t i = 0; i < bloomxai_result.size(); i++) {
-  //     const auto& voxel = bloomxai_result[i];
-  //     if (voxel.z() >= occupancy_min_z_ && voxel.z() <= occupancy_max_z_) {
-  //       std::vector<uint8_t> color = label_to_rgb_[labels[i]];
-  //       pcl_cloud.push_back(
-  //           PCLPointRGB(voxel.x(), voxel.y(), voxel.z(), color[0], color[1], color[2]));
-  //     }
-  //   }
-
-  //   PointCloud2 cloud;
-  //   pcl::toROSMsg(pcl_cloud, cloud);
-  //   cloud.header.frame_id = world_frame_id_;
-  //   cloud.header.stamp = rostime;
-  //   point_cloud_pub_->publish(cloud);
-
-  //   RCLCPP_INFO(get_logger(), "Published occupancy grid with %ld voxels",
-  //   pcl_cloud.points.size());
-  // }
 
   // Publish Cube Marker
   thread_local visualization_msgs::msg::Marker marker;

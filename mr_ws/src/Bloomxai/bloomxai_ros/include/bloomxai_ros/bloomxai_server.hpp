@@ -72,7 +72,6 @@ class BloomxaiServer : public rclcpp::Node {
   rcl_interfaces::msg::SetParametersResult onParameter(
       const std::vector<rclcpp::Parameter>& parameters);
 
-  rclcpp::Publisher<PointCloud2>::SharedPtr point_cloud_pub_;
   rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub_;
   rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr grid_map_pub_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr point_cloud_sub_;
@@ -115,7 +114,7 @@ class BloomxaiServer : public rclcpp::Node {
   std::string base_frame_id_;   // base of the robot for ground plane filtering
 
   bool latched_topics_;
-
+  
   SemanticType semantic_type_;
   int sem_dim_;
   int num_queries_;

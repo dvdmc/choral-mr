@@ -99,13 +99,9 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_footprint:
-          Value: false
         base_link:
           Value: true
         base_link_frd:
-          Value: false
-        base_mocap:
           Value: false
         camera_aligned_depth_to_infra1_frame:
           Value: false
@@ -127,16 +123,6 @@ Visualization Manager:
           Value: false
         camera_link:
           Value: true
-        caster_back_link:
-          Value: false
-        caster_front_link:
-          Value: false
-        cliff_sensor_front_link:
-          Value: false
-        cliff_sensor_left_link:
-          Value: false
-        cliff_sensor_right_link:
-          Value: false
         drone1/base_link:
           Value: true
         drone1/base_link_frd:
@@ -149,62 +135,8 @@ Visualization Manager:
           Value: false
         drone1/odom_ned:
           Value: false
-        drone2/base_link:
-          Value: true
-        drone2/map:
-          Value: true
-        drone2/odom:
-          Value: false
         earth:
           Value: true
-        gyro_link:
-          Value: false
-        map:
-          Value: true
-        odom:
-          Value: false
-        plate_bottom_link:
-          Value: false
-        plate_middle_link:
-          Value: false
-        plate_top_link:
-          Value: false
-        pole_bottom_0_link:
-          Value: false
-        pole_bottom_1_link:
-          Value: false
-        pole_bottom_2_link:
-          Value: false
-        pole_bottom_3_link:
-          Value: false
-        pole_bottom_4_link:
-          Value: false
-        pole_bottom_5_link:
-          Value: false
-        pole_kinect_0_link:
-          Value: false
-        pole_kinect_1_link:
-          Value: false
-        pole_middle_0_link:
-          Value: false
-        pole_middle_1_link:
-          Value: false
-        pole_middle_2_link:
-          Value: false
-        pole_middle_3_link:
-          Value: false
-        pole_top_0_link:
-          Value: false
-        pole_top_1_link:
-          Value: false
-        pole_top_2_link:
-          Value: false
-        pole_top_3_link:
-          Value: false
-        wheel_left_link:
-          Value: false
-        wheel_right_link:
-          Value: false
       Marker Scale: 1
       Name: TF
       Show Arrows: true
@@ -236,71 +168,6 @@ Visualization Manager:
                   {}
               drone1/odom_ned:
                 {}
-          drone2/map:
-            drone2/odom:
-              drone2/base_link:
-                {}
-          map:
-            odom:
-              base_footprint:
-                base_link:
-                  base_link_frd:
-                    {}
-                  caster_back_link:
-                    {}
-                  caster_front_link:
-                    {}
-                  cliff_sensor_front_link:
-                    {}
-                  cliff_sensor_left_link:
-                    {}
-                  cliff_sensor_right_link:
-                    {}
-                  gyro_link:
-                    {}
-                  plate_bottom_link:
-                    {}
-                  plate_middle_link:
-                    {}
-                  plate_top_link:
-                    base_mocap:
-                      {}
-                  pole_bottom_0_link:
-                    {}
-                  pole_bottom_1_link:
-                    {}
-                  pole_bottom_2_link:
-                    {}
-                  pole_bottom_3_link:
-                    {}
-                  pole_bottom_4_link:
-                    {}
-                  pole_bottom_5_link:
-                    {}
-                  pole_kinect_0_link:
-                    {}
-                  pole_kinect_1_link:
-                    {}
-                  pole_middle_0_link:
-                    {}
-                  pole_middle_1_link:
-                    {}
-                  pole_middle_2_link:
-                    {}
-                  pole_middle_3_link:
-                    {}
-                  pole_top_0_link:
-                    {}
-                  pole_top_1_link:
-                    {}
-                  pole_top_2_link:
-                    {}
-                  pole_top_3_link:
-                    {}
-                  wheel_left_link:
-                    {}
-                  wheel_right_link:
-                    {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -376,10 +243,7 @@ Visualization Manager:
       Enabled: true
       Name: HVRPMarkers
       Namespaces:
-        PRM: false
-        hetPath: true
-        homPath: false
-        tasks: true
+        {}
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -461,25 +325,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 10.881745338439941
+      Distance: 10.675979614257812
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.732346057891846
-        Y: 1.649222731590271
-        Z: -2.798178195953369
+        X: 4.18953275680542
+        Y: 1.256739616394043
+        Z: -3.070382595062256
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7047974467277527
+      Pitch: 0.8997969627380371
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.6535415649414062
+      Yaw: 3.7135512828826904
     Saved: ~
 Window Geometry:
   Depth:

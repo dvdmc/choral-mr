@@ -81,8 +81,7 @@ def visualize_sdf(sdf):
     plt.axis('off')
     plt.show()
 
-# ---------- USAGE EXAMPLE -------------
-filename = '/root/mr_ws/src/het_vrp/maps/cave.pgm'
+filename = '/root/choral_ws/src/het_vrp/maps/cave.pgm'
 pgm = load_pgm(filename)
 grid_map = generate_grid_map(pgm)
 terrain_map = compute_traversability_map(grid_map)

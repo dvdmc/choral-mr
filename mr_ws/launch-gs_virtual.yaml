@@ -12,5 +12,5 @@ windows:
   - visualization:
       layout: tiled
       panes:
-        - ros2 run rviz2 rviz2 -d ./src/config/ground_station/virtual.rviz --ros-args -p use_sim_time:=true
+        - ros2 run rviz2 rviz2 -d ./config/ground_station/virtual.rviz --ros-args -p use_sim_time:=true
         - sleep 2; ros2 run tf2_ros static_transform_publisher --x 0 --y 0 --z 0 --qx 0 --qy 0 --qz 0 --qw 1 --child-frame-id /map --frame-id /earth

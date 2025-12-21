@@ -109,7 +109,7 @@ RUN rosdep update && rosdep install -y -r -q --from-paths src --ignore-src
 RUN apt-get update && apt-get install ros-jazzy-navigation2 ros-jazzy-nav2-bringup ros-jazzy-nav2-minimal-tb* -y
 
 # Build with care due to limited resources of Jetson Nano
-RUN source /opt/ros/jazzy/setup.bash && colcon build --symlink-install
+RUN source /opt/ros/jazzy/setup.bash && MAKEFLAGS="-j2" colcon build --symlink-install --parallel-workers 2
 
 RUN pip3 install colcon-lcov-result cpplint cmakelint PySimpleGUI-4-foss --break-system-packages
 
@@ -123,11 +123,14 @@ WORKDIR /root/realsense_ws
 RUN rosdep install -i --from-path src --rosdistro $ROS_DISTRO --skip-keys=librealsense2 -y
 RUN source /opt/ros/jazzy/setup.bash && colcon build
 
-# Install torch for current Jetson version
-RUN apt-get install -y python3.12-venv
-RUN pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126 --break-system-packages
+# Install torch for current Jetson version. We need to start from L4T Nvidia CUDA base images for that. Future work.
+# RUN apt-get install -y python3.12-venv
+# RUN pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126 --break-system-packages
 
+# Indicate that we are inside a drone
+RUN echo "PS1='🚁 🤖'\${PS1}" >> /root/.bashrc
 
+# Add sources to compiled repositories in order
 RUN echo "source /opt/ros/jazzy/setup.bash" >> /root/.bashrc
 RUN echo "source /root/aerostack2_ws/install/setup.bash" >> /root/.bashrc
 RUN echo "source /root/realsense_ws/install/setup.bash" >> /root/.bashrc

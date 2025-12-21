@@ -78,7 +78,7 @@ WORKDIR /root/optitrack_ws/src
 RUN git clone -b rolling https://github.com/MOCAP4ROS2-Project/mocap4r2
 RUN git clone -b rolling https://github.com/MOCAP4ROS2-Project/mocap4r2_msgs
 RUN git clone https://github.com/MOCAP4ROS2-Project/mocap4ros2_optitrack
-RUN git clone https://github.com/dvdmc/optitrack_pose_broadcaster.git
+ADD optitrack_pose_broadcaster /optitrack_pose_broadcaster
 
 WORKDIR /root/optitrack_ws
 RUN rosdep install --from-paths src --ignore-src -r -y

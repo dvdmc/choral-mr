@@ -10,7 +10,7 @@ amcl:
     beam_skip_error_threshold: 0.9
     beam_skip_threshold: 0.3
     do_beamskip: false
-    global_frame_id: "map"
+    global_frame_id: "earth"
     lambda_short: 0.1
     laser_likelihood_max_dist: 2.0
     laser_max_range: 100.0
@@ -40,7 +40,7 @@ amcl:
 
 bt_navigator:
   ros__parameters:
-    global_frame: map
+    global_frame: earth
     robot_base_frame: base_link
     odom_topic: gt_pose
     bt_loop_duration: 10
@@ -162,7 +162,7 @@ controller_server:
         cost_power: 1
         cost_weight: 3.81
         critical_cost: 300.0
-        consider_footprint: true
+        consider_footprint: false
         collision_cost: 1000000.0
         near_goal_distance: 1.0
         trajectory_point_step: 2
@@ -247,7 +247,7 @@ global_costmap:
     ros__parameters:
       update_frequency: 1.0
       publish_frequency: 1.0
-      global_frame: map
+      global_frame: earth
       robot_base_frame: base_link
       robot_radius: 0.22
       resolution: 0.05
@@ -298,7 +298,7 @@ map_saver:
 
 planner_server:
   ros__parameters:
-    expected_planner_frequency: 20.0
+    expected_planner_frequency: 10.0
     planner_plugins: ["GridBased"]
     costmap_update_timeout: 1.0
     GridBased:
@@ -341,7 +341,7 @@ behavior_server:
     assisted_teleop:
       plugin: "nav2_behaviors::AssistedTeleop"
     local_frame: gt_pose
-    global_frame: map
+    global_frame: earth
     robot_base_frame: base_link
     transform_tolerance: 0.1
     simulate_ahead_time: 2.0
@@ -351,7 +351,7 @@ behavior_server:
 
 waypoint_follower:
   ros__parameters:
-    loop_rate: 20
+    loop_rate: 10
     stop_on_failure: false
     action_server_result_timeout: 900.0
     waypoint_task_executor_plugin: "wait_at_waypoint"
@@ -362,7 +362,7 @@ waypoint_follower:
 
 velocity_smoother:
   ros__parameters:
-    smoothing_frequency: 20.0
+    smoothing_frequency: 10.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
     max_velocity: [0.5, 0.0, 2.0]
@@ -442,7 +442,7 @@ docking_server:
     # docks: ['home_dock']  # Input your docks here
     # home_dock:
     #   type: 'simple_charging_dock'
-    #   frame: map
+    #   frame: earth
     #   pose: [0.0, 0.0, 0.0]
 
     controller:
@@ -462,6 +462,6 @@ loopback_simulator:
   ros__parameters:
     base_frame_id: "base_footprint"
     odom_frame_id: "odom"
-    map_frame_id: "map"
+    map_frame_id: "earth"
     scan_frame_id: "base_scan"  # tb4_loopback_simulator.launch.py remaps to 'rplidar_link'
     update_duration: 0.02

@@ -1,4 +1,4 @@
-# === Select base image: comment/uncomment ONE of the following two lines ===
+# Select base image: comment/uncomment ONE of the following two lines
 # For CUDA support:
 FROM nvidia/cuda:12.8.1-runtime-ubuntu24.04
 # For plain Ubuntu (no CUDA):

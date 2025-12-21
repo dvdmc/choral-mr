@@ -74,8 +74,8 @@ drone1/state_estimator:
 drone1:
   mavros/mavros_node:
     ros__parameters:
-      fcu_url: "/dev/ttyACM0:57600" # Autopilot address for connection
-      gcs_url: "udp://@192.168.0.150:14550" # Ground Control Station address
+      fcu_url: "/dev/THS1:921600" # Autopilot address for connection
+      gcs_url: "udp://@192.168.0.31:14550" # Ground Control Station address
       tgt_system: 1 # Target system ID = Instance + 1
       tgt_component: 1 # Target component ID
       log_output: "screen"

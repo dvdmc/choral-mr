@@ -2,7 +2,7 @@
 
 usage() {
     echo "  options:"
-    echo "      -n: select drone namespace to launch. "
+    echo "      -n: select drone namespace to launch. Default is 'drone0'"
     echo "      -c: motion controller plugin (pid_speed_controller, differential_flatness_controller), choices: [pid, df]. Default: pid"
     echo "      -r: record rosbag. Default not launch"
 }

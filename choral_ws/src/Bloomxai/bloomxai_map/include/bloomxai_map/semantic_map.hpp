@@ -33,19 +33,12 @@ struct SemCellT {
         occ_prob_log(-1),
         sem_dim(0),
         count(0) {}
-
-  // // Calculate serialized size in bytes for serialization
-  // [[nodiscard]] size_t size() const {
-  //   if (semantics.size() == 0) {
-  //     throw std::runtime_error("Used size() on an empty SemCellT.");
-  //   }
-  //   return sizeof(int32_t)                        // update_id + occ_prob_log (packed into 4
-  //   bytes)
-  //          + sizeof(int32_t)                      // sem_dim (4 bytes)
-  //          + (semantics.size() * sizeof(float));  // semantics data
-  // }
 };
 
+/**
+ * @brief BaseSemanticOperator is an abstract class that defines the interface
+ * for operations on semantic cells in the semantic map. See below for implementations.
+ */
 class BaseSemanticOperator {
  public:
   int sem_dim;
@@ -194,15 +187,11 @@ class SemanticMap {
   std::vector<std::vector<int>> generate2DGridMap(
       const std::vector<float>& min, const std::vector<float>& max,
       const std::vector<int>& map_size, const std::vector<int>& problematic_classes,
-      const std::vector<int>& task_classes,
-      float th_z) const;
+      const std::vector<int>& task_classes, float th_z) const;
 
-  void collapseTasks(std::vector<std::vector<int>>& grid,
-                                int goal_code,
-                                float radius_cells,
-                                int unknown_code,
-                                float obstacle_radius_cells) const;
-
+  void collapseTasks(
+      std::vector<std::vector<int>>& grid, int goal_code, float radius_cells, int unknown_code,
+      float obstacle_radius_cells) const;
 
   template <typename PointT>
   void getOccupiedVoxels(std::vector<PointT>& points) {
@@ -336,8 +325,6 @@ class SemanticMap {
   }
 };
 
-//--------------------------------------------------
-
 inline void SemanticMap::Serialize(std::ofstream& out, const VoxelGrid<SemCellT>& grid) const {
   char header[256];
   std::string type_name = details::demangle(typeid(SemCellT).name());
@@ -348,7 +335,6 @@ inline void SemanticMap::Serialize(std::ofstream& out, const VoxelGrid<SemCellT>
 
   out.write(header, std::strlen(header));
 
-  //------------
   Write(out, uint32_t(grid.rootMap().size()));
 
   for (const auto& it : grid.rootMap()) {
@@ -593,11 +579,9 @@ class ProbabilitySemanticOperator : public BaseSemanticOperator {
 class FeatureSemanticOperator : public BaseSemanticOperator {
  public:
   struct FeatOptions {
-    // Occupancy threshold to initialize the vector and remove it to save space
-    int occ_thres_logods = SemanticMap::logods(0.5f);
-
     int num_queries = 0;
-    Eigen::Matrix<float, -1, -1, Eigen::RowMajor> query_embeddings = Eigen::Matrix<float, -1, -1, Eigen::RowMajor>::Zero(0, 0);
+    Eigen::Matrix<float, -1, -1, Eigen::RowMajor> query_embeddings =
+        Eigen::Matrix<float, -1, -1, Eigen::RowMajor>::Zero(0, 0);
   };
 
  private:
@@ -632,8 +616,7 @@ class FeatureSemanticOperator : public BaseSemanticOperator {
     cell.semantics += inv_count * (measurement - cell.semantics);
   }
 
-  void integrateMiss(SemCellT& cell) const override {
-  }
+  void integrateMiss(SemCellT& cell) const override {}
 
   int argmax(const SemCellT& cell) const override {
     if (options_.query_embeddings.rows() == 0) {

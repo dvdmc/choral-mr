@@ -22,5 +22,5 @@
       semantic_type: features
       thres: 0.5
 
-      problematic_classes: [1,2] # ['floor','cable','pebbles', 'animal']
+      problematic_classes: [1,2] # ['cable','pebbles']
       task_classes: [3] # ['animal']

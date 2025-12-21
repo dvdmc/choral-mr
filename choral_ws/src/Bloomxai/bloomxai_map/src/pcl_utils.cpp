@@ -31,8 +31,6 @@ bool Bloomxai::ReadPointsFromPCD(const std::string& filepath, std::vector<Bonxai
   return ReadPointsFromPCD_Impl(filepath, points);
 }
 
-//-----------------------------------------------
-
 inline pcl::PointXYZ toPointXYZ(const Eigen::Vector3d& p) {
   return {float(p.x()), float(p.y()), float(p.z())};
 }

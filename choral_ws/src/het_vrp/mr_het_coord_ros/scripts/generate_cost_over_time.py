@@ -17,22 +17,22 @@ min_costs = df.groupby('map')['total_cost'].min()
 df['relative_gap'] = df.apply(lambda row: (row['total_cost'] - min_costs[row['map']]) / min_costs[row['map']], axis=1)
 
 # Create the new `series` column for the plot legend
-df['series'] = df.apply(lambda row: f'{row["map"]} (V={row["num_tasks"]})', axis=1)
+df['series'] = df.apply(lambda row: f'{row["map"]} ({row["num_tasks"]})', axis=1)
 
 # Set the plot style
 sns.set_theme(style="whitegrid")
 
 # Create the line plot
-plt.figure(figsize=(10, 4))
+plt.figure(figsize=(6, 2.5))
 sns.lineplot(data=df, x='vrp_time', y='relative_gap', hue='series', marker='o')
 
 # Set labels and title
 plt.xlabel('VRP Solver Time (s)')
-plt.ylabel('Rel. Gap to Converged Solution (%)')
+plt.ylabel('Rel. Gap (%)')
 # plt.title('Relative Gap to Converged Solution vs. VRP Solver Time')
 
 # Adjust the legend position
-plt.legend(title='Map (V=#Tasks)', loc='upper right')
+plt.legend(title='Map (#Tasks)', loc='upper right')
 plt.tight_layout()
 
 # Save the plot

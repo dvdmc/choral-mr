@@ -132,7 +132,6 @@ class BloomxaiServer : public rclcpp::Node {
 
   bool publish_2d_map_;
   bool map_origin_changed;
-  // octomap::OcTreeKey padded_min_key_;
   unsigned multires_2d_scale_;
   bool project_complete_map_;
 };

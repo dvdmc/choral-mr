@@ -223,7 +223,7 @@ void SemanticMap::collapseTasks(
   const float R2 = radius_cells * radius_cells;
   const float OR2 = obstacle_radius_cells * obstacle_radius_cells;
 
-  // Process all clusters
+  // Process all clusters with DBSCAN-like region growing
   for (auto& start : goal_cells) {
     int sx = start.first;
     int sy = start.second;
@@ -264,9 +264,7 @@ void SemanticMap::collapseTasks(
     if (region.empty())
       continue;
 
-    // ---------------------------------------------------------
-    //  CHECK UNKNOWN PROXIMITY
-    // ---------------------------------------------------------
+    // Check proximity to unknown cells
     bool too_close_to_unknown = false;
 
     for (auto& p : region) {
@@ -297,9 +295,7 @@ void SemanticMap::collapseTasks(
       continue;
     }
 
-    // ---------------------------------------------------------
-    //  COLLAPSE TO BBOX CENTER
-    // ---------------------------------------------------------
+    // Collapse region to center
     int min_x = W, min_y = H;
     int max_x = 0, max_y = 0;
 
@@ -360,12 +356,11 @@ std::vector<std::vector<int>> SemanticMap::generate2DGridMap(
       }
     }
 
-    //  TODO: Fix this
     if (grid_coord_y < 0 || grid_coord_y >= map_size[1] || grid_coord_x < 0 ||
         grid_coord_x >= map_size[0]) {
       std::cerr << "Out-of-bounds write: (" << grid_coord_x << ", " << grid_coord_y << ")"
                 << std::endl;
-      return;  // or continue;
+      return;
     }
 
     int prev_value = matrix[grid_coord_y][grid_coord_x];

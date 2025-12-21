@@ -89,7 +89,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
   RCLCPP_INFO(this->get_logger(), "Finished experiments");
 
   // Uncomment below for batched experiments
-  // rclcpp::shutdown();
+  rclcpp::shutdown();
 }
 MRVRPNode::~MRVRPNode() {}
 

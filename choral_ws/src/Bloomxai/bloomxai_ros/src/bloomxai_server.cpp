@@ -127,12 +127,12 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   // Declare the set of problematic and task classes
   std::vector<int64_t> tmp;
   this->declare_parameter("semantics.problematic_classes", std::vector<int64_t>{1});
-  if(!this->get_parameter("semantics.problematic_classes", tmp)){
+  if (!this->get_parameter("semantics.problematic_classes", tmp)) {
     RCLCPP_ERROR(this->get_logger(), "Problematic classes not configured, using default!");
   }
   problematic_classes_.assign(tmp.begin(), tmp.end());
   this->declare_parameter("semantics.task_classes", std::vector<int64_t>{2});
-  if(!this->get_parameter("semantics.task_classes", tmp)){
+  if (!this->get_parameter("semantics.task_classes", tmp)) {
     RCLCPP_ERROR(this->get_logger(), "Task classes not configured, using default!");
   }
   task_classes_.assign(tmp.begin(), tmp.end());
@@ -358,7 +358,7 @@ bool BloomxaiServer::sendGridMap() const {
   std::vector<float> min, max;
   std::vector<int> map_size;
   std::vector<std::vector<int>> matrix;
-  
+
   double th_z = 0.8;
 
   {
@@ -373,7 +373,8 @@ bool BloomxaiServer::sendGridMap() const {
       max[i] -= bloomxai_->getResolution() / 2.0;
     }
 
-    matrix = bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes_, task_classes_, th_z);
+    matrix =
+        bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes_, task_classes_, th_z);
   }
 
   nav_msgs::msg::OccupancyGrid grid_msg;
@@ -449,7 +450,8 @@ bool BloomxaiServer::savePGMMapCallback(
     std::cout << "Resolution: " << bloomxai_->getResolution() << std::endl;
     std::cout << "Map size: [" << map_size[0] << "," << map_size[1] << "]" << std::endl;
 
-    auto matrix = bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes_, task_classes_, th_z);
+    auto matrix =
+        bloomxai_->generate2DGridMap(min, max, map_size, problematic_classes_, task_classes_, th_z);
 
     for (int i = map_size[1] - 1; i >= 0; i--) {
       for (int j = 0; j < map_size[0]; j++) {
@@ -676,7 +678,6 @@ rcl_interfaces::msg::SetParametersResult BloomxaiServer::onParameter(
 }
 
 void BloomxaiServer::publishAll() {
-
   auto start = std::chrono::steady_clock::now();
   const auto rostime = this->now();
   thread_local std::vector<Eigen::Vector3d> bloomxai_result;

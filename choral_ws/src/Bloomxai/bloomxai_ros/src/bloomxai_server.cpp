@@ -170,7 +170,6 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   sem_prob_th_range.from_value = 0.0;
   sem_prob_th_range.to_value = 1.0;
   sem_occ_th_desc.floating_point_range.push_back(sem_prob_th_range);
-  const double sem_occ_thres = declare_parameter("semantics.occ_thres", 0.5, sem_occ_th_desc);
 
   // Add an index for similarity
   rcl_interfaces::msg::ParameterDescriptor sim_index_desc;
@@ -212,7 +211,6 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
     RCLCPP_INFO(get_logger(), "sem_thres_min %f", sem_thres_min);
     RCLCPP_INFO(get_logger(), "sem_thres_max %f", sem_thres_max);
   } else if (semantic_type_ == SemanticType::FEATURES) {
-    RCLCPP_INFO(get_logger(), "sem_thres %f", sem_occ_thres);
     RCLCPP_INFO(get_logger(), "sim_index %d", sim_index);
   }
 
@@ -231,7 +229,6 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
     semantic_operator = std::make_unique<Bloomxai::FeatureSemanticOperator>(sem_dim_);
 
     Bloomxai::FeatureSemanticOperator::FeatOptions feat_options;
-    feat_options.occ_thres_logods = bloomxai_->logods(sem_occ_thres);
     semantic_operator->setOptions(feat_options);
   }
 
@@ -316,8 +313,6 @@ bool BloomxaiServer::setQueriesCallback(
 
   Bloomxai::FeatureSemanticOperator::FeatOptions options;
   // Read param
-  double occ_thres = get_parameter("semantics.occ_thres").as_double();
-  options.occ_thres_logods = bloomxai_->logods(occ_thres);
   options.num_queries = num_queries;
   if (num_queries * sem_dim_ != flat_embeddings.size()) {
     response->success = false;

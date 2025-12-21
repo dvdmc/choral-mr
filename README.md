@@ -22,7 +22,7 @@ This repository contains:
 - `docker_gs/choral_ws` workspace including different packages used in the ground station. Specifically:
   - `sensors_tools` our package used for inference on images. It is a general module, and the `Trident` configuration was used.
   - `Bloomxai` our 3D semantic voxel-based map software.
-  - `het_vrp` the planning and coordination package implementing our heterogeneous VRP formulation, the cost computation, and PRM construction.
+  - `mr_het_coord` the planning and coordination package implementing our heterogeneous VRP formulation, the cost computation, and PRM construction.
 
 ## Installation
 
@@ -91,7 +91,7 @@ tmuxinator start -p launch-gs_virtual.yaml
 mr_coord_virtual.launch num_agents:=2 map:=forest 
 ```
 
-You can modify the number of agents to 1 and 4. Other numbers require creating specific config files in `choral_ws/src/het_vrp/mr_het_coord_ros/cfg`. You can also specify other map names.
+You can modify the number of agents to 1 and 4. Other numbers require creating specific config files in `choral_ws/src/mr_het_coord/mr_het_coord_ros/cfg`. You can also specify other map names.
 
 ## Real robots deployment
 

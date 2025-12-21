@@ -3,7 +3,7 @@
     step_size: 0.25
     safety_distance: 0.4
 
-    map_filename: /root/choral_ws/src/het_vrp/maps/forest.pgm
+    map_filename: /root/choral_ws/src/mr_het_coord/maps/forest.pgm
     map_name: forest
     paths_filename: none
     map_resolution: 0.0333

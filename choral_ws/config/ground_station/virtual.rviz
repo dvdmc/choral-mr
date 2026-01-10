@@ -57,9 +57,9 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        PRM: true
+        PRM: false
         hetPath: true
-        homPath: true
+        homPath: false
         tasks: true
       Topic:
         Depth: 5
@@ -114,16 +114,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 20.85503387451172
+      Distance: 26.160552978515625
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 9.89637279510498
-        Y: 0.8410650491714478
-        Z: 3.5687456130981445
+        X: 13.001437187194824
+        Y: 1.528145670890808
+        Z: 5.0952534675598145
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false

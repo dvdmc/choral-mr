@@ -241,8 +241,8 @@ BaseGraph PRM::buildGraphFromTasks_(
       std::vector<BaseGraphNode::Ptr> potential =
           graph.getKNeighbors(node, 5, true, true);
       for (auto const& neighbor : potential) {
-        std::cout << "Searching path for densification between node "
-                  << node->id << " and " << neighbor->id << std::endl;
+        // std::cout << "Searching path for densification between node "
+        //           << node->id << " and " << neighbor->id << std::endl;
         std::vector<std::vector<float>> path = rrt.searchPath(
             {node->x, node->y}, {neighbor->x, neighbor->y}, goal_th_);
         if (path.size() > 0) {

@@ -86,10 +86,10 @@ colcon build --symlink-install
 source install/setup.bash
 tmuxinator start -p launch-gs_virtual.yaml
 # On the terminal that appears
-mr_coord_virtual.launch num_agents:=2 map:=forest 
+ros2 launch mr_het_coord_ros mr_coord_virtual.launch num_agents:=2 map:=forest
 ```
 
-You can modify the number of agents to 1 and 4. Other numbers require creating specific config files in `choral_ws/src/mr_het_coord/mr_het_coord_ros/config`. You can also specify other map names.
+You can modify the number of agents to 1 and 4. Other numbers require creating specific config files in `choral_ws/src/mr_het_coord/mr_het_coord_ros/config`. You can also specify other map names. Furthermore, you can check `choral_ws/src/mr_het_coord/maps/edits` to create your own maps.
 
 ## Real robots deployment
 

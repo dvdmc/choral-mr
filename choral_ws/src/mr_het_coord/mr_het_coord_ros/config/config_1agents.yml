@@ -11,6 +11,6 @@
     velocities:
       - 1.0
 
-    solver_seconds: 120
+    solver_seconds: 5
 
     results_path: /root/results/

@@ -16,7 +16,6 @@ def get_star_points(cx, cy, outer_radius, inner_radius=None):
     return points
 
 def save_mission_map(data, name, scale, radius):
-    """Figure 1: Obstacles (Black) + Low Trav (Ochre) + Star (Depot) + Pink Circles (Tasks)"""
     h, w = data.shape
     # Start with white background
     mission_bg = np.ones((h, w, 3), dtype=np.uint8) * 255
@@ -45,17 +44,15 @@ def save_mission_map(data, name, scale, radius):
     img.save(f"{name}_mission.png")
 
 def save_traversability_map(data, name, scale):
-    """Figure 2: Pure environment map - Obstacles (Black), Low Trav (Ochre), Free (White)"""
     h, w = data.shape
     color_map = np.ones((h, w, 3), dtype=np.uint8) * 255
     color_map[data == 0] = [0, 0, 0]
-    color_map[data == 125] = [183, 135, 65]
+    color_map[data == 125] = [80, 70, 30]
     
     img = Image.fromarray(color_map).resize((w * scale, h * scale), Image.NEAREST)
     img.save(f"{name}_traversability.png")
 
 def save_sdf_map(data, name, scale):
-    """Figure 3: SDF Gradient from obstacles (0)"""
     mask = data != 0
     sdf = distance_transform_edt(mask)
     if sdf.max() > 0:

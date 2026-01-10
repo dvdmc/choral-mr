@@ -1,23 +1,15 @@
 <launch>
-    <!-- Declare launch arguments -->
     <arg name="map" description="Map name for the configuration file"/>
     <arg name="num_agents" description="Number of agents for the configuration file"/>
 
-    <!-- RViz Node -->
-    <!-- <node name="rviz2" pkg="rviz2" exec="rviz2" output="screen">
-        <param name="arguments" value="-d $(find-pkg-share mr_het_coord_ros)/cfg/rviz.rviz"/>
-    </node> -->
-
-    <!-- VRP Node -->
     <node name="mr_het_vrp_node" pkg="mr_het_coord_ros" exec="mr_het_vrp_node" output="screen" on_exit="shutdown">
-        <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_$(var map).yml"/>
-        <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_$(var num_agents)agents.yml"/>
+        <param from="$(find-pkg-share mr_het_coord_ros)/config/config_$(var map).yml"/>
+        <param from="$(find-pkg-share mr_het_coord_ros)/config/config_$(var num_agents)agents.yml"/>
         <remap from="/grid_map_in" to="/grid_map_out"/>
     </node>
 
-    <!-- Map Node -->
     <node name="mr_het_map_node" pkg="mr_het_coord_ros" exec="mr_het_map_node" output="screen">
-        <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_$(var map).yml"/>
-        <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_$(var num_agents)agents.yml"/>
+        <param from="$(find-pkg-share mr_het_coord_ros)/config/config_$(var map).yml"/>
+        <param from="$(find-pkg-share mr_het_coord_ros)/config/config_$(var num_agents)agents.yml"/>
     </node>
 </launch>

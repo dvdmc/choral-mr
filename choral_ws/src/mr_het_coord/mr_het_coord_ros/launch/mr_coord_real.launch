@@ -1,19 +1,16 @@
 <launch>
-    <!-- Declare launch arguments -->
     <arg name="map" description="Map name for the configuration file"/>
     <arg name="num_agents" description="Number of agents for the configuration file"/>
 
-    <!-- VRP Node -->
     <node name="mr_het_vrp_node" pkg="mr_het_coord_ros" exec="mr_het_vrp_node" output="screen">
-        <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_$(var map).yml"/>
-        <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_real_agents$(var num_agents).yml"/>
+        <param from="$(find-pkg-share mr_het_coord_ros)/config/config_$(var map).yml"/>
+        <param from="$(find-pkg-share mr_het_coord_ros)/config/config_real_agents$(var num_agents).yml"/>
 
         <remap from="/grid_map_in" to="/grid_map_out"/>
     </node>
 
-    <!-- Planner node -->
     <node name="mr_het_planner_node" pkg="mr_het_coord_ros" exec="mr_het_planner_node" output="screen">
-        <param from="$(find-pkg-share mr_het_coord_ros)/cfg/config_real_agents$(var num_agents).yml"/>
+        <param from="$(find-pkg-share mr_het_coord_ros)/config/config_real_agents$(var num_agents).yml"/>
     </node>
 
 </launch>

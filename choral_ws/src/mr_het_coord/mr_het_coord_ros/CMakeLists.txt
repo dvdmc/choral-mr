@@ -84,9 +84,9 @@ launch
 DESTINATION share/${PROJECT_NAME}/
 )
 
-# Install cfg files.
+# Install config files.
 install(DIRECTORY
-cfg
+config
 DESTINATION share/${PROJECT_NAME}/
 )
 

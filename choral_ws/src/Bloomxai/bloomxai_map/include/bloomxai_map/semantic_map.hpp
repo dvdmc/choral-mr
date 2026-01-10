@@ -278,32 +278,26 @@ class SemanticMap {
       std::istream& input, const HeaderInfo& info, size_t sem_dim);
 
   void WriteSemCellT(std::ostream& out, const SemCellT& cell) const {
-    // Pack the bitfield
     int32_t packed = ((cell.update_id & 0xF) << 28) | (cell.occ_prob_log & 0x0FFFFFFF);
     out.write(reinterpret_cast<const char*>(&packed), sizeof(int32_t));
 
-    // Write sem_dim
     int32_t sem_dim = cell.semantics.size();
     out.write(reinterpret_cast<const char*>(&sem_dim), sizeof(int32_t));
 
-    // Write count
     int32_t count = cell.semantics.size();
     out.write(reinterpret_cast<const char*>(&count), sizeof(int32_t));
 
-    // Write semantics data
     out.write(reinterpret_cast<const char*>(cell.semantics.data()), sizeof(float) * sem_dim);
   }
 
   SemCellT ReadSemCellT(std::istream& input, int sem_dim) {
     SemCellT out;
 
-    // Read packed int (update_id and occ_prob_log)
     int32_t packed;
     input.read(reinterpret_cast<char*>(&packed), sizeof(int32_t));
     out.update_id = (packed >> 28) & 0xF;
     out.occ_prob_log = packed & 0x0FFFFFFF;
 
-    // Read and check sem_dim from file
     int32_t readsem_dim_;
     input.read(reinterpret_cast<char*>(&readsem_dim_), sizeof(int32_t));
 
@@ -313,11 +307,9 @@ class SemanticMap {
 
     out.sem_dim = readsem_dim_;
 
-    // Read count
     int32_t count;
     input.read(reinterpret_cast<char*>(&count), sizeof(int32_t));
 
-    // Read vector
     out.semantics.resize(sem_dim);
     input.read(reinterpret_cast<char*>(out.semantics.data()), sizeof(float) * sem_dim);
 
@@ -357,7 +349,7 @@ inline void SemanticMap::Serialize(std::ofstream& out, const VoxelGrid<SemCellT>
       for (auto leaf = leafgrid_.mask().beginOn(); leaf; ++leaf) {
         const uint32_t leaf_index = *leaf;
         const auto& cell = leafgrid_.cell(leaf_index);
-        WriteSemCellT(out, cell);  // or any function that writes SemCellT field-by-field
+        WriteSemCellT(out, cell);
       }
     }
   }
@@ -527,14 +519,11 @@ class ProbabilitySemanticOperator : public BaseSemanticOperator {
   virtual void integrateHit(SemCellT& cell, const VSemantics& measurement) const override {
     VSemantics regularized = regularizeSemantics(measurement);
 
-    // Correct element-wise multiply
     cell.semantics = cell.semantics.cwiseProduct(regularized);
 
-    // Correct clamping
     cell.semantics =
         cell.semantics.cwiseMax(options_.clamp_min_prob).cwiseMin(options_.clamp_max_prob);
 
-    // Normalize
     cell.semantics /= cell.semantics.sum();
   }
 
@@ -542,14 +531,11 @@ class ProbabilitySemanticOperator : public BaseSemanticOperator {
     // Add uncertainty to the current semantics
     VSemantics regularized = regularizeSemantics(cell.semantics);
 
-    // Correct element-wise multiply
     cell.semantics = cell.semantics.cwiseProduct(regularized);
 
-    // Correct clamping
     cell.semantics =
         cell.semantics.cwiseMax(options_.clamp_min_prob).cwiseMin(options_.clamp_max_prob);
 
-    // Normalize
     cell.semantics /= cell.semantics.sum();
   }
 

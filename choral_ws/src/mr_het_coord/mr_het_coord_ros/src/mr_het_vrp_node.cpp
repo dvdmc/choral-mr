@@ -265,8 +265,7 @@ visualization_msgs::msg::MarkerArray MRVRPNode::createTasksMarkers(
 
 std::vector<std::vector<float>> MRVRPNode::readTasksFromFile(std::string const &filename) const
 {
-  // Tasks are a json file with a list of [x,y] positions
-  // Example: {tasks: [[1.0,2.0],[3.0,4.0],...]}
+  // For when task positions are given instead of detected in the map
   std::ifstream file;
   file.open(filename);
   if (!file.is_open()) {

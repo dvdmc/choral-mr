@@ -17,7 +17,7 @@ bool update_param(const std::vector<rclcpp::Parameter>& p, const std::string& na
   }
   return false;
 }
-}  // namespace
+} // namespace
 
 namespace bloomxai_server {
 BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
@@ -137,7 +137,7 @@ BloomxaiServer::BloomxaiServer(const rclcpp::NodeOptions& node_options)
   }
   task_classes_.assign(tmp.begin(), tmp.end());
 
-  // Declar the rest of paramters
+  // Declare the rest of paramters
   rcl_interfaces::msg::ParameterDescriptor alpha_reg_desc;
   alpha_reg_desc.description = "Alpha regularization parameter";
   rcl_interfaces::msg::FloatingPointRange alpha_reg_range;
@@ -374,11 +374,9 @@ bool BloomxaiServer::sendGridMap() const {
 
   nav_msgs::msg::OccupancyGrid grid_msg;
 
-  // Header
   grid_msg.header.stamp = this->now();
   grid_msg.header.frame_id = world_frame_id_;
 
-  // Map meta-data
   grid_msg.info.resolution = bloomxai_->getResolution();
   grid_msg.info.width = map_size[0];
   grid_msg.info.height = map_size[1];
@@ -396,9 +394,6 @@ bool BloomxaiServer::sendGridMap() const {
   }
   for (int y = 0; y < map_size[1]; y++) {
     for (int x = 0; x < map_size[0]; x++) {
-      // std::cout << " Coords : " << x << "," << y << " Size: " << map_size[0] << "," <<
-      // map_size[1] << std::endl;
-
       int idx = y * map_size[0] + x;
       int val = matrix[y][x];
       grid_msg.data[idx] = val;
@@ -559,7 +554,6 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
     point_index++;
   }
 
-  // === Apply Radius Outlier Removal ===
   pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;
   outrem.setInputCloud(pc.makeShared());
   outrem.setRadiusSearch(0.1);        // Radius in meters
@@ -610,8 +604,6 @@ void BloomxaiServer::insertCloudCallback(const PointCloud2::ConstSharedPtr cloud
 
   double total_elapsed = (rclcpp::Clock{}.now() - start).seconds();
   RCLCPP_INFO(get_logger(), "Pointcloud insertion in Bonxai done, %f sec)", total_elapsed);
-
-  // publishAll();
 }
 
 rcl_interfaces::msg::SetParametersResult BloomxaiServer::onParameter(
@@ -650,21 +642,13 @@ rcl_interfaces::msg::SetParametersResult BloomxaiServer::onParameter(
     prob_options.clamp_max_prob = clamp_max_prob;
     bloomxai_->semantic_operator->setOptions(prob_options);
   } else if (semantic_type_ == SemanticType::FEATURES) {
-    // Features
-    // double occ_thres = get_parameter("semantics.occ_thres").as_double();
-    // update_param(parameters, "semantics.occ_thres", occ_thres);
     int sim_query_index = get_parameter("semantics.sim_query_index").as_int();
     update_param(parameters, "semantics.sim_query_index", sim_query_index);
     sim_query_index_ = sim_query_index;
-    // Bloomxai::FeatureSemanticOperator::FeatOptions feat_options;
-    // feat_options.occ_thres = occ_thres;
-    // bloomxai_->semantic_operator->setOptions(feat_options);
   }
 
   std::lock_guard<std::mutex> lock(bloomxai_mutex_);
   bloomxai_->setOptions(options);
-
-  // publishAll(now());
 
   rcl_interfaces::msg::SetParametersResult result;
   result.successful = true;
@@ -700,7 +684,6 @@ void BloomxaiServer::publishAll() {
     return;
   }
 
-  // Publish Cube Marker
   thread_local visualization_msgs::msg::Marker marker;
   marker.header.frame_id = world_frame_id_;
   marker.header.stamp = rostime;
@@ -748,7 +731,6 @@ void BloomxaiServer::publishAll() {
 
   if (semantic_type_ == SemanticType::FEATURES) {
     // Publish similarity
-    // Publish Cube Marker
     thread_local visualization_msgs::msg::Marker marker;
     marker.header.frame_id = world_frame_id_;
     marker.header.stamp = rostime;
@@ -763,7 +745,6 @@ void BloomxaiServer::publishAll() {
     marker.points.clear();
     marker.colors.clear();
 
-    // --- Phase 1: Gather Valid Voxels and Find Max Similarity ---
     std::vector<geometry_msgs::msg::Point> valid_points;
     std::vector<float> valid_similarities;
     float max_similarity = 0.0f;
@@ -773,17 +754,14 @@ void BloomxaiServer::publishAll() {
       float current_similarity = similarities[i];
 
       if (voxel.z() >= occupancy_min_z_ && voxel.z() <= occupancy_max_z_) {
-        // Store the point coordinates
         geometry_msgs::msg::Point p;
         p.x = voxel.x();
         p.y = voxel.y();
         p.z = voxel.z();
         valid_points.push_back(p);
 
-        // Store the similarity value
         valid_similarities.push_back(current_similarity);
 
-        // Update the maximum similarity found so far
         if (current_similarity > max_similarity) {
           max_similarity = current_similarity;
         }
@@ -791,23 +769,17 @@ void BloomxaiServer::publishAll() {
     }
 
     if (max_similarity == 0.0f) {
-      // Exit the scope if no voxels are valid or max similarity is zero.
-      // The marker remains empty.
       return;
     }
 
-    // --- Phase 2: Normalize and Visualize ---
 
+    // Normalize the similarity value
     for (size_t i = 0; i < valid_points.size(); ++i) {
-      // 1. Normalize the similarity value
       float normalized_sim = valid_similarities[i] / max_similarity;
 
-      // 2. Add the point to the marker
       marker.points.push_back(valid_points[i]);
 
-      // 3. Calculate and add color
       std_msgs::msg::ColorRGBA color;
-      // std::cout << normalized_sim << std::endl; // Use normalized value here
       auto rgb = sim_to_rgb_(normalized_sim);
 
       color.r = rgb[0] / 255.0f;
@@ -840,7 +812,6 @@ bool BloomxaiServer::resetSrv(
   bloomxai_ = std::make_unique<BloomxaiT>(res_, sem_dim_, std::move(semantic_operator));
 
   RCLCPP_INFO(get_logger(), "Cleared Bonxai");
-  // publishAll(rostime);
 
   return true;
 }

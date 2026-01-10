@@ -17,7 +17,7 @@ void VRPSolver::distanceFromPathPlanner(
           positions.size(), std::vector<std::vector<float>>(0)));
 
   std::cout << "Start distances" << std::endl;
-  auto start = std::chrono::high_resolution_clock::now();
+  // auto start = std::chrono::high_resolution_clock::now();
   // int total = positions.size() * positions.size();
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j <= i; ++j) {
@@ -44,11 +44,11 @@ void VRPSolver::distanceFromPathPlanner(
       distance_matrix[j][i] = distance_matrix[i][j];
     }
   }
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "############## Time taken on computing distances: "
-            << duration.count() << " ms" << std::endl;
+  // auto end = std::chrono::high_resolution_clock::now();
+  // auto duration =
+  //     std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  // std::cout << "############## Time taken on computing distances: "
+  //           << duration.count() << " ms" << std::endl;
   makeAsymmetric_(distance_matrix);
 }
 
@@ -60,7 +60,7 @@ void VRPSolver::distanceFromPaths(
       paths.size(), std::vector<int64_t>(paths.size(), 0));
 
   std::cout << "Start distances" << std::endl;
-  // int total = paths.size() * paths.size();
+
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j <= i; ++j) {
       float path_dist = path_planner.computeDistance(paths[i][j]);
@@ -75,13 +75,13 @@ void VRPSolver::distanceFromPaths(
   }
   std::cout << "Finish distances" << std::endl;
   // Print distance matrix
-  for (size_t i = 0; i < distance_matrix.size(); ++i) {
-    for (size_t j = 0; j < distance_matrix.size(); ++j) {
-      std::cout << "From " << i << " to " << j << ": " << distance_matrix[i][j]
-                << std::endl;
-    }
-    std::cout << std::endl;
-  }
+  // for (size_t i = 0; i < distance_matrix.size(); ++i) {
+  //   for (size_t j = 0; j < distance_matrix.size(); ++j) {
+  //     std::cout << "From " << i << " to " << j << ": " << distance_matrix[i][j]
+  //               << std::endl;
+  //   }
+  //   std::cout << std::endl;
+  // }
   makeAsymmetric_(distance_matrix);
 }
 
@@ -167,11 +167,11 @@ void VRPSolver::hetPlatformCostMatrices(
   }
 
   makeAsymmetric_(cost_matrices);
-  auto end = std::chrono::high_resolution_clock::now();
-  auto duration =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
-  std::cout << "Time taken on computing het costs: " << duration.count()
-            << " ms" << std::endl;
+  // auto end = std::chrono::high_resolution_clock::now();
+  // auto duration =
+  //     std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+  // std::cout << "Time taken on computing het costs: " << duration.count()
+  //           << " ms" << std::endl;
 }
 
 void VRPSolver::addCostHeterogeneous_(
@@ -214,12 +214,12 @@ void VRPSolver::addCostHeterogeneous_(
 void VRPSolver::addMaxSpanConstraint_(
     RoutingModel& routing, int64_t median, int64_t median_cost, int num_nodes,
     int num_vehicles, std::vector<int> transit_callback_indeces) const {
-  std::cout << "Median distance: " << median << std::endl;
-  std::cout << "Median safety cost: " << median_cost << std::endl;
+  // std::cout << "Median distance: " << median << std::endl;
+  // std::cout << "Median safety cost: " << median_cost << std::endl;
   // Minimize each vehicles' global span
   int64_t est_route_cost = (median * (num_nodes) / (num_vehicles-1)) +
                            (median_cost * (num_nodes) / (num_vehicles-1));  // Ideally no added cost
-  std::cout << "Median route cost: " << est_route_cost << std::endl;
+  // std::cout << "Median route cost: " << est_route_cost << std::endl;
 
   routing.AddDimensionWithVehicleTransits(
       transit_callback_indeces, int64_t{0}, est_route_cost,
@@ -275,7 +275,6 @@ int64_t VRPSolver::getMaxCost_(
 std::vector<int64_t> VRPSolver::getMedianCost_(
     std::vector<std::vector<std::vector<int64_t>>> const& cost_matrices) const {
 
-  // add a consideration for very high costs to not consider them in the median
   int64_t high_cost = 0.9 * DISTANCE_SCALING;
   std::vector<int64_t> median_costs;
   for (size_t k = 0; k < cost_matrices.size(); ++k) {
@@ -290,7 +289,7 @@ std::vector<int64_t> VRPSolver::getMedianCost_(
     }
     if (costs.empty()) {
       median_costs.push_back(
-          0);  // Or handle as an error, depending on requirements
+          0);
       continue;
     }
     std::sort(costs.begin(), costs.end());
@@ -317,7 +316,7 @@ int64_t VRPSolver::getMedianDistance_(
     }
   }
   if (distances.empty()) {
-    return 0;  // Or handle as an error
+    return 0;
   }
   std::sort(distances.begin(), distances.end());
   size_t size = distances.size();
@@ -337,7 +336,7 @@ void VRPSolver::normalizeDistanceMatrix_(
     return;
   }
   double scaling = (double)max_distance / (double)DISTANCE_SCALING;
-  std::cout << "Scaling distance: " << scaling << std::endl;
+  // std::cout << "Scaling distance: " << scaling << std::endl;
   for (size_t i = 0; i < distance_matrix.size(); ++i) {
     for (size_t j = 0; j < distance_matrix.size(); ++j) {
       if (distance_matrix[i][j] != IMPOSIBLE_COST * DISTANCE_SCALING) {
@@ -356,7 +355,7 @@ void VRPSolver::normalizeCostMatrices_(
   double scaling =
       (double)max_cost /
       (double)DISTANCE_SCALING;  // Get the scaling without the scaling part
-  std::cout << "Scaling cost: " << scaling << std::endl;
+  // std::cout << "Scaling cost: " << scaling << std::endl;
   for (size_t k = 0; k < cost_matrices.size(); ++k) {
     for (size_t i = 0; i < cost_matrices[k].size(); ++i) {
       for (size_t j = 0; j < cost_matrices[k].size(); ++j) {

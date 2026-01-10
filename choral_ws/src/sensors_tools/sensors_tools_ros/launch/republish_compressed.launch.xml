@@ -1,5 +1,5 @@
 <launch>
-  <arg name="override_file" default="$(find-pkg-share sensors_tools_ros)/cfg/qos_profile.yaml"/>
+  <arg name="override_file" default="$(find-pkg-share sensors_tools_ros)/config/qos_profile.yaml"/>
   
   <!-- Republish RGB compressed image to raw -->
   <node

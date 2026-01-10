@@ -134,7 +134,7 @@ class BasePlanner {
         float local_rate = 0.0f;
 
         // Traversability-related accident rate (for ground agents)
-        if (agent_type != AgentType::AERIAL) {
+        if (agent_type == AgentType::GROUND) {
           if (map.getTraversability(x, y, agent_type) == 0) {
             local_rate += lambda_bad_trav;
           } else {

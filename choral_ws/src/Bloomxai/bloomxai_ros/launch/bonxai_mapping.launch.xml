@@ -1,7 +1,7 @@
 <launch>
 
   <arg name="config_file" default="$(find-pkg-share bloomxai_ros)/config/bloomxai.yaml"/>
-  <!-- launch-prefix="gnome-terminal -/- gdb -ex run -/-args" -->
+
 	<node pkg="bloomxai_ros" exec="bloomxai_server_node" name="bloomxai_server" output="screen">
 
     <param from="$(var config_file)" />

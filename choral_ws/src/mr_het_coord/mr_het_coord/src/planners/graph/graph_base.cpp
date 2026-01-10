@@ -114,7 +114,6 @@ std::vector<BaseGraphNode::Ptr> BaseGraph::getKNeighbors(
   }
   else
   {
-    // Use std::nth_element to partially sort
     std::nth_element(distances.begin(), distances.begin() + k, distances.end());
     distances.resize(k);
     std::sort(distances.begin(), distances.end()); // Ensure the result is sorted
@@ -197,7 +196,6 @@ BaseGraph::getKPotentialConnections(std::vector<BaseGraphNode::Ptr> nodes1,
     }
   }
 
-  // Use nth_element to partially sort the top k elements
   if (distances.size() > k)
   {
     std::nth_element(distances.begin(), distances.begin() + k, distances.end(),
@@ -230,11 +228,9 @@ BaseGraph::getKPotentialConnections(std::vector<BaseGraphNode::Ptr> nodes1,
 
 BaseGraph BaseGraph::copy() const
 {
-  // Step 1: Create a mapping from original nodes_ to new nodes_
   BaseGraph new_graph;
   std::unordered_map<BaseGraphNode::Ptr, BaseGraphNode::Ptr> node_map;
 
-  // Step 2: Create a new node for each node in the original graph
   for (auto const &node : nodes_)
   {
     BaseGraphNode::Ptr new_node =
@@ -243,7 +239,6 @@ BaseGraph BaseGraph::copy() const
     node_map[node] = new_node; // Map original node to new node
   }
 
-  // Step 3: Copy the neighbors using the mapping
   for (const auto &node : nodes_)
   {
     BaseGraphNode::Ptr new_node = node_map[node];
@@ -280,7 +275,6 @@ void BaseGraph::dfs(int node, std::vector<bool> &visited,
       visited[current] = true;
       component.push_back(nodes_[current]);
 
-      // Push neighbors of the current node to the stack
       for (auto neighbor : nodes_[current]->neighbors)
       {
         if (!visited[neighbor->id])

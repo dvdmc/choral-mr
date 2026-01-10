@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="config_file" default="$(find-pkg-share sensors_tools_ros)/cfg/sensor_scannet_segformer.yaml"/>
+  <arg name="config_file" default="$(find-pkg-share sensors_tools_ros)/config/sensor_scannet_segformer.yaml"/>
 
   <node pkg="sensors_tools_ros"
         exec="semantic_node"

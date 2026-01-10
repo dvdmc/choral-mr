@@ -44,8 +44,7 @@ void PRM::computeNeighbors_(BaseGraph& graph, bool only_add, int k) {
         neighbors = graph.getKNeighbors(node, k  - node->neighbors.size(), true, false);
       }
     }
-    // std::cout << "Node " << node->id << " has " << neighbors.size() << "
-    // neighbors" << std::endl;
+
     for (auto neighbor : neighbors) {
       if (!node->neighbors.count(neighbor) &&
           isVisible(node->x, node->y, neighbor->x, neighbor->y)) {
@@ -108,7 +107,7 @@ BaseGraph PRM::buildGraphFromTasks_(
 
   // Compute missing paths
   std::cout << "Checking connected components" << std::endl;
-  auto start2 = std::chrono::high_resolution_clock::now();
+  // auto start2 = std::chrono::high_resolution_clock::now();
   std::vector<ConnectedComponent> connected = graph.findConnectedComponents();
   // std::cout << "Time taken in finding components: "
   //           << std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -119,7 +118,7 @@ BaseGraph PRM::buildGraphFromTasks_(
 
   /////////// CONNECT DISCONNECTED COMPONENTS
   RRTStar rrt(map, step_size_, 10000, 5.0f, rng_, false);
-  auto start3 = std::chrono::high_resolution_clock::now();
+  // auto start3 = std::chrono::high_resolution_clock::now();
 
   if (connected.size() > 1) {
     // Order the components from smaller to larger size
@@ -231,8 +230,8 @@ BaseGraph PRM::buildGraphFromTasks_(
 
   // NOTE: Densifying proved to not improve much in the final version of the PRM construction.
   // It might improve results in more complex environemnts
-  std::cout << "Densifying graph" << std::endl; auto start4 =
-  std::chrono::high_resolution_clock::now();
+  // std::cout << "Densifying graph" << std::endl; auto start4 =
+  // std::chrono::high_resolution_clock::now();
   //Densify, if any node has less than 5 neighbors, find paths to others
   auto nodes = graph.getNodes();
   for (auto node : nodes) {
@@ -259,18 +258,18 @@ BaseGraph PRM::buildGraphFromTasks_(
     }
   }
   computeNeighbors_(graph);
-    std::cout << "Time taken in densifying: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::high_resolution_clock::now() - start4)
-                   .count()
-            << " ms" << std::endl;
+  //   std::cout << "Time taken in densifying: "
+  //           << std::chrono::duration_cast<std::chrono::milliseconds>(
+  //                  std::chrono::high_resolution_clock::now() - start4)
+  //                  .count()
+  //           << " ms" << std::endl;
 
-  std::cout << "############## Total time taken in building PRM: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::high_resolution_clock::now() - start)
-                   .count()
-            << " ms" << std::endl;
-  std::cout << "Finish graph" << std::endl;
+  // std::cout << "############## Total time taken in building PRM: "
+  //           << std::chrono::duration_cast<std::chrono::milliseconds>(
+  //                  std::chrono::high_resolution_clock::now() - start)
+  //                  .count()
+  //           << " ms" << std::endl;
+  // std::cout << "Finish graph" << std::endl;
   return graph;
 }
 

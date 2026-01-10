@@ -15,7 +15,7 @@
 
     # Config for bridge is in sensors_tools/bridge/{bridge_type}.py
     bridge:
-      bridge_type: 'scannet' # Source of the sensor. It can be 'airsim' or 'ros'
+      bridge_type: 'scannet' # Source of the sensor.
       automove: true
       downsampling_factor_dataset: 4
       data_types: ['rgb', 'depth', 'semantic', 'pose'] # Data types to be published. It can be 'rgb', 'depth', 'semantic', 'pose'

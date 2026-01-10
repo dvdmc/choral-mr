@@ -11,7 +11,7 @@
 #include <math.h>
 #include <algorithm>
 
-/// @brief Enumeration for specifying the type of agent
+// Enumeration for specifying the type of agent
 enum AgentType
 {
   AERIAL = 0,
@@ -163,31 +163,23 @@ public:
   bool isVisible(float x1, float y1, float x2, float y2,
                  float increment = 0.001f, bool use_sdf = false) const
   {
-    // Calculate the differences in x and y
     float dx = x2 - x1;
     float dy = y2 - y1;
 
-    // Calculate the distance between the two points
     float distance = std::sqrt(dx * dx + dy * dy);
 
-    // If the points are too close, treat them as visible
     if (distance <= increment)
     {
       return isValid(x1, y1, use_sdf) && isValid(x2, y2, use_sdf);
     }
 
-    // Calculate the number of steps based on the distance
-    // int num_steps = int(distance / increment) + 1;
-
     // Step along the line and check each point
     float t = 0.0f;
     while (t < 1.0f)
     {
-      // Linear interpolation between the points
       float x = x1 + t * dx;
       float y = y1 + t * dy;
 
-      // If any point along the line is not valid, return false
       if (!isValid(x, y, use_sdf))
       {
         return false;
@@ -203,7 +195,6 @@ public:
       }
     }
 
-    // If all points are valid, return true
     return true;
   }
 
@@ -255,7 +246,7 @@ public:
 
     // Read PGM header
     std::string magicNumber;
-    file >> magicNumber; // Should be "P5"
+    file >> magicNumber; // Should be "P2"
     if (magicNumber != "P2")
     {
       std::cerr << "Invalid PGM file" << std::endl;
@@ -265,7 +256,6 @@ public:
     // Skip comments
     std::string comment;
     file >> comment;
-    // std::cout << "File comment: " << comment << std::endl;
     file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
     // _px and heigh are on the next line
@@ -519,7 +509,7 @@ public:
     {
       for (size_t c = 0; c < grid_map[0].size() - 1; c++)
       {
-        if (grid_map[r][c] == 22) // 22 = 100 - int(200 * 100 / 255) color is 200 in PGM
+        if (grid_map[r][c] == 22)
         {
           std::vector<float> pos_corner = gridToWorld(r, c);
           std::vector<float> pos = {float(pos_corner[0]) + resolution / 2,

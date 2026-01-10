@@ -173,7 +173,6 @@ class ScanNetBridge(BaseBridge):
         """
         data = {}
 
-        start = time.time()
         if "rgb" in self.cfg.data_types:
             # Load RGB image
             img_path = self.cfg.dataset_path / "color" / f"{self.seq_n}.jpg"
@@ -184,15 +183,12 @@ class ScanNetBridge(BaseBridge):
             )  # Resize to match the depth image
             # img = img.crop((80, 0, 560, 480)) #Crop the image to match the depth image
             data["rgb"] = np.array(img)
-            print(f"Time to load RGB: {time.time() - start}")
 
-        start = time.time()
         if "semantic" in self.cfg.data_types:
             # Load GT label
             label_path = self.cfg.dataset_path / "label" / f"{self.seq_n}.png"
             label = np.array(Image.open(label_path))
             label = self.remap_to_NYU_classes[label]
-            print(f"LABEL: {np.unique(label)}")
             label[np.where(label == 255)] = 0  # Remove the white contour
             label = cv2.resize(
                 label,
@@ -201,9 +197,7 @@ class ScanNetBridge(BaseBridge):
             )
             # label = label[:, 80:560]
             data["semantic_gt"] = label
-            print(f"Time to load semantic: {time.time() - start}")
 
-        start = time.time()
         if "depth" in self.cfg.data_types:
             # Load depth image (depth frames as 16-bit pngs (depth shift 1000))
             depth_path = self.cfg.dataset_path / "depth" / f"{self.seq_n}.png"
@@ -211,7 +205,6 @@ class ScanNetBridge(BaseBridge):
             depth = (depth / 1000).astype(np.float32)
             # depth = depth[:, 80:560]
             data["depth"] = depth
-            print(f"Time to load depth: {time.time() - start}")
         return data
 
     def get_data(self) -> dict:

@@ -125,9 +125,6 @@ static const std::vector<std::vector<uint8_t>> generateColorMap(int numLabels) {
       {0, 92, 255},    {184, 255, 0},   {0, 133, 255},  {255, 214, 0},   {25, 194, 194},
       {102, 255, 0},   {92, 0, 255}};
 
-  // Generate the color map add colors from the generic map. If the number of
-  // labels is greater than the number of colors in the generic map, generate
-  // new colors interpolating between colors.
   std::vector<std::vector<uint8_t>> colorMap;
   int repetitions_generic_map = std::ceil(numLabels / genericMap.size());
   for (int i = 0; i < numLabels; i++) {

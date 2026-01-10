@@ -36,11 +36,13 @@ BaseGraph PRM::buildGraphFromPositions_(
 void PRM::computeNeighbors_(BaseGraph& graph, bool only_add, int k) {
   for (auto node : graph.getNodes()) {
     std::vector<BaseGraphNode::Ptr> neighbors;
-    if (only_add && node->neighbors.size() < k) {
+    if (only_add) {
       neighbors =
-          graph.getKNeighbors(node, k - node->neighbors.size(), true, true);
+          graph.getKNeighbors(node, k, true, true);
     } else {
-      neighbors = graph.getKNeighbors(node, k, true, false);
+      if(node->neighbors.size() < k) {
+        neighbors = graph.getKNeighbors(node, k  - node->neighbors.size(), true, false);
+      }
     }
     // std::cout << "Node " << node->id << " has " << neighbors.size() << "
     // neighbors" << std::endl;
@@ -167,7 +169,6 @@ BaseGraph PRM::buildGraphFromTasks_(
         bool is_connected = false;
         std::cout << "Trying to connect components " << connected[i].id
                   << " and " << connected[j].id << std::endl;
-        std::cout << "Safe: " << map_.FREE_THRESH << std::endl;
         auto potential = graph.getKPotentialConnections(
             connected[i].nodes, tmp_connected[j].nodes, 10);
 

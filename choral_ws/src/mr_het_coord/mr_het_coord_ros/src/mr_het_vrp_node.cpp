@@ -89,7 +89,7 @@ MRVRPNode::MRVRPNode() : Node("mr_coord_node"), rnd_seed_(42) {
   RCLCPP_INFO(this->get_logger(), "Finished experiments");
 
   // Uncomment below for batched experiments
-  rclcpp::shutdown();
+  // rclcpp::shutdown();
 }
 MRVRPNode::~MRVRPNode() {}
 
@@ -99,7 +99,7 @@ void MRVRPNode::pubTimerCallback() {
 
   if (tasks_.size() > 0) {
     visualization_msgs::msg::MarkerArray markers =
-        createTasksMarkers(tasks_, map_->width_m * 0.02);
+        createTasksMarkers(tasks_, map_->width_m * 0.015);
     pub_tasks_->publish(markers);
   }
   if (hom_path_.size() > 0) {

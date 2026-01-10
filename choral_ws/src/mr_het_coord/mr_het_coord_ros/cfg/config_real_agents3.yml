@@ -1,25 +1,30 @@
 /**:
   ros__parameters:
-    num_vehicles: 4
+
+    global_frame: "earth"
+
+    robot_ns:
+      - "drone2"
+      - "turtlebot1"
+      - "turtlebot2"
+
+    num_vehicles: 3
 
     agent_types:
       - AERIAL
-      - AERIAL
       - GROUND
       - GROUND
-    
+
     orientations:
-      - 0.0
       - 0.0
       - 0.0
       - 0.0
 
     velocities:
-      - 1.0
-      - 1.0
       - 0.5
-      - 0.5
+      - 0.25
+      - 0.25
 
-    solver_seconds: 120
+    solver_seconds: 3
 
     results_path: /root/results/

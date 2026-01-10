@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /MarkerArray1
         - /MarkerArray1/Namespaces1
       Splitter Ratio: 0.5009041428565979
     Tree Height: 1088
@@ -29,7 +30,7 @@ Panels:
 Visualization Manager:
   Class: ""
   Displays:
-    - Alpha: 0.699999988079071
+    - Alpha: 1
       Binary representation: false
       Binary threshold: 100
       Class: rviz_default_plugins/Map
@@ -56,7 +57,10 @@ Visualization Manager:
       Enabled: true
       Name: MarkerArray
       Namespaces:
-        {}
+        PRM: true
+        hetPath: true
+        homPath: true
+        tasks: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -117,18 +121,18 @@ Visualization Manager:
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.9590044021606445
-        Y: 0.7918404340744019
-        Z: 1.8429211378097534
+        X: 9.89637279510498
+        Y: 0.8410650491714478
+        Z: 3.5687456130981445
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7347971796989441
+      Pitch: 0.7197971940040588
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.285801887512207
+      Yaw: 4.4958014488220215
     Saved: ~
 Window Geometry:
   Displays:

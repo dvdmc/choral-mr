@@ -1,4 +1,4 @@
-# CHORAL: A General Framework for Safe Heterogeneous Multi-robot Coordination in Inspection Tasks
+# CHORAL: Traversal-Aware Planning for Safe and Efficient Heterogeneous Multi-Robot Routing
 
 <p align="center">
   <img src="media/teaser.png" alt="Main image" height="250" style="margin-right: 40px;">

@@ -91,6 +91,14 @@ ros2 launch mr_het_coord_ros mr_coord_virtual.launch num_agents:=2 map:=forest
 
 You can modify the number of agents to 1 and 4. Other numbers require creating specific config files in `choral_ws/src/mr_het_coord/mr_het_coord_ros/config`. You can also specify other map names. Furthermore, you can check `choral_ws/src/mr_het_coord/maps/edits` to create your own maps.
 
+To shut everything down, you can use:
+
+```bash
+./stop_tmuxinator.bash
+exit
+docker compose down
+```
+
 ## Real robots deployment
 
 The real robot deployment highly depends on the specific lab setup and configurations. In the following we offer a comprehensive configuration guide for our different components. Even though specific steps might be required in other systems, we believe that this guide will ease the adoption of our multi-robot system.

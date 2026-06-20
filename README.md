@@ -1,4 +1,6 @@
+
 # CHORAL: Traversal-Aware Planning for Safe and Efficient Heterogeneous Multi-Robot Routing
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20778613.svg)](https://doi.org/10.5281/zenodo.20778613)
 
 <p align="center">
   <img src="media/teaser.png" alt="Main image" height="250" style="margin-right: 40px;">
